@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>RewindYou Settings</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      h1 {
+        color: #4285f4;
+      }
+      .info {
+        background-color: #e8f4fd;
+        padding: 15px;
+        border-radius: 4px;
+        border-left: 4px solid #4285f4;
+        margin-bottom: 20px;
+      }
+      .info h2 {
+        margin-top: 0;
+        color: #333;
+      }
+      .info p {
+        margin: 10px 0;
+        line-height: 1.6;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #3367d6;
+      }
+      .success-message {
+        color: green;
+        margin-top: 10px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 RewindYou Settings</h1>
+
+    <div class="info">
+      <h2>About RewindYou</h2>
+      <p>
+        <strong>RewindYou</strong> is a web content extraction tool that captures webpage content and metadata.
+      </p>
+      <p>
+        <strong>What it extracts:</strong>
+      </p>
+      <ul>
+        <li>Page URL, title, and timestamps</li>
+        <li>Full page content</li>
+        <li>Word and paragraph counts</li>
+        <li>Meta tags (description, keywords, author)</li>
+      </ul>
+    </div>
+
+    <div class="form-group">
+      <label for="backend-url">Backend Server URL (Optional):</label>
+      <input type="text" id="backend-url" placeholder="http://localhost:5000/api/save-page-data" />
+      <p style="font-size: 12px; color: #666;">
+        Configure your backend endpoint to save extracted data. Leave empty to use default.
+      </p>
+    </div>
+
+    <button id="save-button">Save Settings</button>
+    <p id="success-message" class="success-message">
+      Settings saved successfully!
+    </p>
+
+    <script src="options.js"></script>
+  </body>
+</html>
