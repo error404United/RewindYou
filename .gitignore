@@ -1,0 +1,31 @@
+# Python virtual environment
+flan_env/
+venv/
+.env/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
+
+# IDE stuff
+.vscode/
+.idea/
+
+# Logs / temporary
+*.log
+*.tmp
+
+# Environment or API keys
+*.env
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# pyproject build files
+build/
+dist/
+*.egg-info/
