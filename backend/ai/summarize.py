@@ -26,4 +26,8 @@ outputs = model.generate(
 # Decode summary
 summary = tokenizer.decode(outputs[0], skip_special_tokens=True)
 print("Summary:", summary)
+with open("summary.txt", "w", encoding="utf-8") as f:
+    f.write(summary)
+
+
 
