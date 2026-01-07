@@ -22,7 +22,7 @@ export default function Home() {
         {
           title: "w3schools.com",
           url: "https://www.w3schools.com/dsa/dsa_ref_dynamic_programming.php",
-          date: "December 18, 2025 · 8:21 PM",
+          date: "Dec 18, 2025 · 8:21 PM",
         },
       ],
     };
