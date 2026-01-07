@@ -114,7 +114,7 @@ if __name__ == "__main__":
     print("First 10 embedding values:", np.round(embedding[:10], 4))
 
     # Small demo with query
-    query = "Explain what DP is mainly about."
+    query = "Explain what dynamic programming is mainly about."
     results = embedder.semantic_search(query, [summary_text], top_k=1)
     print("\nTop match for query:")
     for text, score in results:
