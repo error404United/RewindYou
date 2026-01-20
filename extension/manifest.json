@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "RewindYou - Web Content Extractor",
+  "version": "1.0",
+  "description": "Extract webpage content and metadata, then send to backend for storage",
+  "permissions": ["scripting", "activeTab", "tabs", "storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "options_page": "options.html",
+  "host_permissions": ["<all_urls>"]
+}
