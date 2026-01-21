@@ -4,10 +4,10 @@ import os
 import chromadb
 
 # Load environment variables from .env
-load_dotenv("f:/RewindYou/backend/.env")
+load_dotenv("backend/.env")
 
 # Read values
-api_key = os.getenv("CHROMA_API_KEY")
+api_key = os.getenv("CHROMA_API_KEY") 
 tenant = os.getenv("CHROMA_TENANT")
 database = os.getenv("CHROMA_DATABASE")
 
