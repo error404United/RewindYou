@@ -6,10 +6,10 @@ import bcrypt
 from dotenv import load_dotenv
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ENV_PATH = os.path.join(BASE_DIR, "db", ".env")
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ENV_PATH = os.path.join(BASE_DIR, ".env")
 
-load_dotenv(ENV_PATH)
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
