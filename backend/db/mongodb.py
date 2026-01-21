@@ -18,3 +18,5 @@ db = client[DB_NAME]
 
 def get_pages_collection():
     return db["pages"]
+def get_users_collection():
+    return db["users"]
