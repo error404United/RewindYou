@@ -1,50 +1,52 @@
-from flask import Flask, request, jsonify, session
-from db.mongodb import get_pages_collection, get_users_collection
+# 
+from flask import Flask, request, jsonify
+from db.mongodb import get_users_collection, get_pages_collection
 import uuid
 from datetime import datetime
 import bcrypt
 from dotenv import load_dotenv
 import os
-
-# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# ENV_PATH = os.path.join(BASE_DIR, ".env")
+from auth.jwt_utils import generate_access_token, generate_refresh_token, verify_refresh_token
+from auth.middleware import jwt_required
+from pymongo.errors import DuplicateKeyError
+import jwt
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# -------------------- SIGNUP --------------------
+# ---------------- SIGNUP ----------------
 @app.route("/signup", methods=["POST"])
 def signup():
     users = get_users_collection()
     data = request.json
 
     username = data.get("username")
+    email = data.get("email")
     password = data.get("password")
 
-    if not username or not password:
-        return jsonify({"message": "Username and password required"}), 400
+    if not username or not email or not password:
+        return jsonify({"message": "All fields required"}), 400
 
-    # Check if user already exists
-    if users.find_one({"username": username}):
-        return jsonify({"message": "User already exists"}), 409
-
-    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
     user = {
         "_id": str(uuid.uuid4()),
         "username": username,
+        "email": email,
         "password": hashed_password,
         "created_at": datetime.utcnow()
     }
 
-    users.insert_one(user)
+    try:
+        users.insert_one(user)
+    except DuplicateKeyError:
+        return jsonify({"message": "Username or email already exists"}), 409
 
-    return jsonify({"message": "User signed up successfully"}), 201
+    return jsonify({"message": "Signup successful"}), 201
 
-
-# -------------------- LOGIN --------------------
+# ---------------- LOGIN ----------------
 @app.route("/login", methods=["POST"])
 def login():
     users = get_users_collection()
@@ -53,81 +55,79 @@ def login():
     username = data.get("username")
     password = data.get("password")
 
-    if not username or not password:
-        return jsonify({"message": "Username and password required"}), 400
-
     user = users.find_one({"username": username})
-
     if not user:
         return jsonify({"message": "Invalid credentials"}), 401
 
-    if not bcrypt.checkpw(password.encode("utf-8"), user["password"]):
+    if not bcrypt.checkpw(password.encode(), user["password"]):
         return jsonify({"message": "Invalid credentials"}), 401
 
-    # Store session
-    session["user_id"] = user["_id"]
-    session["username"] = user["username"]
+    access_token = generate_access_token(user["_id"], user["username"])
+    refresh_token = generate_refresh_token(user["_id"])
 
-    return jsonify({"message": "Login successful"}), 200
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }), 200
 
+# ---------------- REFRESH ----------------
+@app.route("/refresh", methods=["POST"])
+def refresh():
+    data = request.json
+    refresh_token = data.get("refresh_token")
 
-# -------------------- LOGOUT --------------------
-@app.route("/logout", methods=["POST"])
-def logout():
-    session.clear()
-    return jsonify({"message": "Logged out successfully"}), 200
+    if not refresh_token:
+        return jsonify({"message": "Refresh token required"}), 400
 
+    try:
+        payload = verify_refresh_token(refresh_token)
+        new_access = generate_access_token(payload["user_id"], "user")
+        return jsonify({"access_token": new_access}), 200
+    except jwt.ExpiredSignatureError:
+        return jsonify({"message": "Refresh token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"message": "Invalid refresh token"}), 401
 
-# -------------------- STORE PAGE (AUTH REQUIRED) --------------------
+# ---------------- STORE PAGE ----------------
 @app.route("/store", methods=["POST"])
+@jwt_required
 def store_page():
-    if "user_id" not in session:
-        return jsonify({"message": "Unauthorized"}), 401
-
     pages = get_pages_collection()
     data = request.json
 
-    content_id = str(uuid.uuid4())
-
-    document = {
-        "_id": content_id,
-        "user_id": session["user_id"],
+    doc = {
+        "_id": str(uuid.uuid4()),
+        "user_id": request.user["user_id"],
         "url": data.get("url"),
         "title": data.get("title"),
         "summary": data.get("summary"),
         "timestamp": datetime.utcnow()
     }
 
-    pages.insert_one(document)
+    pages.insert_one(doc)
 
-    return jsonify({
-        "message": "Page stored successfully",
-        "content_id": content_id
-    })
+    return jsonify({"message": "Stored"}), 201
 
-
-# -------------------- TIMELINE (AUTH REQUIRED) --------------------
+# ---------------- TIMELINE ----------------
 @app.route("/timeline", methods=["GET"])
-def get_timeline():
-    if "user_id" not in session:
-        return jsonify({"message": "Unauthorized"}), 401
-
+@jwt_required
+def timeline():
     pages = get_pages_collection()
+
     results = pages.find(
-        {"user_id": session["user_id"]}
+        {"user_id": request.user["user_id"]}
     ).sort("timestamp", -1)
 
-    timeline = []
+    data = []
     for doc in results:
-        timeline.append({
+        data.append({
             "id": doc["_id"],
-            "title": doc["title"],
-            "url": doc["url"],
-            "timestamp": doc["timestamp"]
+            "title": doc.get("title"),
+            "url": doc.get("url"),
+            "timestamp": doc.get("timestamp")
         })
 
-    return jsonify(timeline)
-
+    return jsonify(data), 200
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -27,10 +27,12 @@ collection.add(
     ],
     ids=["doc4", "doc5", "doc6"]
 )
+query_texts=["AI memory system"]
 results = collection.query(
-    query_texts=["AI memory system"],
+    query_texts=query_texts,
     n_results=2
 )
+print("Query:",query_texts)
 print("\n🔎 Query Results:")
 for i, doc in enumerate(results["documents"][0], start=4):
     print(f"{i}. {doc}")
