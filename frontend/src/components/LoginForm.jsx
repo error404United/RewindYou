@@ -11,6 +11,12 @@ export default function LoginForm({ switchToSignup }) {
     navigate("/home");
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleLogin();
+    }
+  };
+
   return (
     <div className="auth-card">
       <h2>Welcome back!</h2>
@@ -26,6 +32,7 @@ export default function LoginForm({ switchToSignup }) {
         <input
           type={showPassword ? "text" : "password"}
           placeholder="Password"
+          onKeyDown={handleKeyDown}
         />
         <button
           className="eye-btn"

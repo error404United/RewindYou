@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Check, X } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 export default function SignupForm({ switchToLogin }) {
@@ -11,13 +11,20 @@ export default function SignupForm({ switchToLogin }) {
   const passwordsMatch =
     confirmPassword.length > 0 && password === confirmPassword;
 
-  const showError = confirmPassword.length >= password.length && password !== confirmPassword;
+  const showError =
+    confirmPassword.length >= password.length && password !== confirmPassword;
 
   const navigate = useNavigate();
 
   const handleSignup = () => {
     if (!passwordsMatch) return;
     navigate("/Home");
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && passwordsMatch) {
+      handleSignup();
+    }
   };
 
   return (
@@ -58,6 +65,7 @@ export default function SignupForm({ switchToLogin }) {
           placeholder="Confirm password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
+          onKeyDown={handleKeyDown}
         />
         <button
           className="eye-btn"
@@ -67,7 +75,13 @@ export default function SignupForm({ switchToLogin }) {
         </button>
       </div>
 
-      {showError && <p className="error-text">Passwords do not match</p>}
+      {showError && <p className="error-text"><X size={14} className="cross-icon"/>Passwords do not match</p>}
+
+      {passwordsMatch && (
+        <p className="success-text">
+          <Check size={14} className="check-icon"/> Passwords match
+        </p>
+      )}
 
       <button
         className="primary-btn"
