@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function LoginForm({ switchToSignup }) {
@@ -23,8 +23,8 @@ export default function LoginForm({ switchToSignup }) {
       <p className="auth-sub">Login to your memory</p>
 
       <div className="input-group">
-        <Mail size={18} />
-        <input type="email" placeholder="Email" />
+        <User size={18} />
+        <input type="text" placeholder="Username" />
       </div>
 
       <div className="input-group">
