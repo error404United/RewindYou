@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 
-export default function SearchBar({ query, setQuery, onSearch }) {
+export default function SearchBar({ query, setQuery, onSearch, loading = false }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       onSearch();
@@ -15,9 +15,10 @@ export default function SearchBar({ query, setQuery, onSearch }) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
+        disabled={loading}
       />
-      <button className="search-btn" onClick={onSearch}>
-        <ArrowRight size={20} />
+      <button className="search-btn" onClick={onSearch} disabled={loading}>
+        {loading ? "..." : <ArrowRight size={20} />}
       </button>
     </div>
   );

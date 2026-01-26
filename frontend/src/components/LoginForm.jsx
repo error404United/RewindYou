@@ -1,14 +1,27 @@
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { login } from "../apiClient";
 
 export default function LoginForm({ switchToSignup }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    // later: call backend
-    navigate("/home");
+  const handleLogin = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await login(email, password);
+      navigate("/home");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -24,7 +37,12 @@ export default function LoginForm({ switchToSignup }) {
 
       <div className="input-group">
         <Mail size={18} />
-        <input type="email" placeholder="Email" />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </div>
 
       <div className="input-group">
@@ -32,6 +50,8 @@ export default function LoginForm({ switchToSignup }) {
         <input
           type={showPassword ? "text" : "password"}
           placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           onKeyDown={handleKeyDown}
         />
         <button
@@ -42,8 +62,10 @@ export default function LoginForm({ switchToSignup }) {
         </button>
       </div>
 
-      <button className="primary-btn" onClick={handleLogin}>
-        Login
+      {error && <p className="error-text">{error}</p>}
+
+      <button className="primary-btn" onClick={handleLogin} disabled={loading}>
+        {loading ? "Signing in..." : "Login"}
       </button>
 
       <p className="switch-text">

@@ -1,2 +1,12 @@
-flask
-flask-cors
+# Python >=3.9
+flask>=3.0
+flask-cors>=4.0
+flask-limiter>=3.10
+pymongo>=4.10
+python-dotenv>=1.0
+PyJWT>=2.9
+bcrypt>=4.1
+torch>=2.2
+sentence-transformers>=3.2
+transformers>=4.46
+chromadb>=1.4

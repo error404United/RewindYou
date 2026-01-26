@@ -138,6 +138,25 @@
         animation: spin 1s linear infinite;
       }
 
+      .auth-box {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .auth-box input {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+
       @keyframes spin {
         0% {
           transform: rotate(0deg);
@@ -150,6 +169,13 @@
   </head>
   <body>
     <h2>RewindYou - Content Extractor</h2>
+
+    <div class="auth-box">
+      <input id="emailInput" type="email" placeholder="Email" />
+      <input id="passwordInput" type="password" placeholder="Password" />
+      <button id="loginButton">Login</button>
+      <div id="auth-status" class="muted" style="grid-column: span 3;"></div>
+    </div>
 
     <div class="options">
       <button id="extractButton">Extract Page Data</button>

@@ -1,5 +1,7 @@
 // Function to extract comprehensive page data
 function extractPageData(){
+  const MAX_CONTENT = 50000; // Truncate to 50k chars to avoid backend limits
+  
   // Get main content (try different selectors for article content)
   let articleContent = '';
   
@@ -26,6 +28,11 @@ function extractPageData(){
   // If no article element found, use body text
   if (!articleContent) {
     articleContent = document.body.innerText;
+  }
+  
+  // Truncate to avoid exceeding backend limit
+  if (articleContent.length > MAX_CONTENT) {
+    articleContent = articleContent.substring(0, MAX_CONTENT) + '...';
   }
 
   const pageData = {
@@ -54,6 +61,15 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     } catch (error) {
       sendResponse({ success: false, error: error.message });
     }
+  }
+  if (req.action === "getAuthTokens") {
+    chrome.storage.local.get(["accessToken", "refreshToken"], (stored) => {
+      sendResponse({
+        success: true,
+        accessToken: stored.accessToken,
+        refreshToken: stored.refreshToken
+      });
+    });
   }
   return true; // Keep the message channel open for async response
 });

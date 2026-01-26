@@ -184,3 +184,8 @@ body {
   line-height: 1.7;
   color: #f1f1f1;
 }
+
+.muted {
+  color: #b5b5b5;
+  font-size: 14px;
+}

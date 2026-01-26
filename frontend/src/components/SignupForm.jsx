@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Check, X } from "lucide-react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { signup } from "../apiClient";
 
 export default function SignupForm({ switchToLogin }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const passwordsMatch =
     confirmPassword.length > 0 && password === confirmPassword;
@@ -16,9 +21,18 @@ export default function SignupForm({ switchToLogin }) {
 
   const navigate = useNavigate();
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!passwordsMatch) return;
-    navigate("/Home");
+    setError("");
+    setLoading(true);
+    try {
+      await signup(username, email, password);
+      navigate("/home");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -34,12 +48,22 @@ export default function SignupForm({ switchToLogin }) {
 
       <div className="input-group">
         <User size={18} />
-        <input type="text" placeholder="Username" />
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
       </div>
 
       <div className="input-group">
         <Mail size={18} />
-        <input type="email" placeholder="Email" />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </div>
 
       <div className="input-group">
@@ -83,12 +107,15 @@ export default function SignupForm({ switchToLogin }) {
         </p>
       )}
 
+      {error && <p className="error-text">{error}</p>}
+
       <button
         className="primary-btn"
         disabled={!passwordsMatch}
         onClick={handleSignup}
+        aria-busy={loading}
       >
-        Sign up
+        {loading ? "Creating account..." : "Sign up"}
       </button>
 
       <p className="switch-text">

@@ -1,38 +1,52 @@
-import chromadb
-from dotenv import load_dotenv
+"""ChromaDB helpers for vector storage and search."""
+
 import os
+from functools import lru_cache
+from typing import Dict, List, Optional
+
 import chromadb
+from chromadb.api.models.Collection import Collection
+from dotenv import load_dotenv
 
-# Load environment variables from .env
-load_dotenv("backend/.env")
+load_dotenv()
 
-# Read values
-api_key = os.getenv("CHROMA_API_KEY") 
-tenant = os.getenv("CHROMA_TENANT")
-database = os.getenv("CHROMA_DATABASE")
 
-client = chromadb.CloudClient(
-  api_key=api_key,
-  tenant=tenant,
-  database=database
-)
-collection = client.get_or_create_collection(
-    name="rewindyou_memory"
-)
-collection.add(
-    documents=[
-        "RewindYou stores personal and read blah blah web memories",
-        "Chroma is a vector database for AI applications and storing of vectors",
-        "Semantic search helps retrieve past relevant memories"
-    ],
-    ids=["doc4", "doc5", "doc6"]
-)
-query_texts=["AI memory system"]
-results = collection.query(
-    query_texts=query_texts,
-    n_results=2
-)
-print("Query:",query_texts)
-print("\n🔎 Query Results:")
-for i, doc in enumerate(results["documents"][0], start=4):
-    print(f"{i}. {doc}")
+@lru_cache(maxsize=1)
+def _client() -> chromadb.CloudClient:
+    api_key = os.getenv("CHROMA_API_KEY")
+    tenant = os.getenv("CHROMA_TENANT")
+    database = os.getenv("CHROMA_DATABASE")
+    if not api_key or not tenant or not database:
+        raise RuntimeError("ChromaDB environment variables are missing.")
+    return chromadb.CloudClient(api_key=api_key, tenant=tenant, database=database)
+
+
+def get_collection(name: str = "rewindyou_memory") -> Collection:
+    return _client().get_or_create_collection(name=name)
+
+
+def add_embedding(
+    doc_id: str,
+    embedding: List[float],
+    metadata: Optional[Dict] = None,
+    collection_name: str = "rewindyou_memory",
+) -> None:
+    collection = get_collection(collection_name)
+    collection.upsert(ids=[doc_id], embeddings=[embedding], metadatas=[metadata or {}])
+
+
+def query_embeddings(
+    query_embedding: List[float],
+    where: Optional[Dict] = None,
+    n_results: int = 5,
+    collection_name: str = "rewindyou_memory",
+) -> Dict:
+    collection = get_collection(collection_name)
+    return collection.query(
+        query_embeddings=[query_embedding],
+        where=where or {},
+        n_results=n_results,
+    )
+
+
+__all__ = ["add_embedding", "query_embeddings", "get_collection"]
