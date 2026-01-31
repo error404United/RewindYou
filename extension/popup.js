@@ -54,6 +54,7 @@ async function extractData() {
 
 function displayExtractedData(data) {
   const resultDiv = document.getElementById("result");
+  document.body.classList.replace("compact", "expanded");
   
   // Truncate content for display (show first 500 characters)
   const contentPreview = data.articleContent && data.articleContent.length > 500 
