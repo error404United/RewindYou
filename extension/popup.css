@@ -103,31 +103,73 @@ body.expanded #result {
   line-height: 1.6;
 }
 
-
 .extracted-data {
   text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .extracted-data h3 {
   color: var(--purple-main);
-  margin-bottom: 14px;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.4);
+  border-bottom: 2px solid rgba(139, 92, 246, 0.4);
   padding-bottom: 6px;
   font-size: 15px;
+  margin-bottom: -4px;
 }
 
 .data-section {
-  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 12px;
   background-color: var(--bg-soft);
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
+.data-section-stats{
+	display: flex;
+	gap: 20px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.info-row svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--purple-main);
+  stroke-width: 2.4px;
+  flex-shrink: 0;
+  display: block;
+  margin: 0;
+}
+
+.info-link {
+  color: var(--text-soft);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.info-link:hover {
+  color: var(--purple-main);
+  text-decoration: underline;
+}
+
+.info-text {
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
 .data-section h4 {
   color: var(--text-main);
   margin-top: 0;
-  margin-bottom: 8px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -140,7 +182,7 @@ body.expanded #result {
 }
 
 .content-preview {
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
   padding: 12px;
   background-color: #121225;
@@ -153,12 +195,53 @@ body.expanded #result {
   word-wrap: break-word;
 }
 
+.metadata {
+  margin-top: 12px;
+}
+
+.meta-block {
+  margin-bottom: 12px;
+}
+
+.meta-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.meta-description {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+.meta-author {
+  font-size: 12.5px;
+  color: var(--text-soft);
+}
+
+.meta-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--purple-main);
+  white-space: nowrap;
+}
+
+
 .success-message {
   background-color: var(--success-bg);
   color: var(--success-text);
   padding: 10px 12px;
   border-radius: 10px;
-  margin-bottom: 10px;
   font-size: 13px;
 }
 
@@ -167,7 +250,6 @@ body.expanded #result {
   color: var(--warning-text);
   padding: 10px 12px;
   border-radius: 10px;
-  margin-bottom: 10px;
   font-size: 13px;
 }
 
