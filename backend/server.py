@@ -3,6 +3,7 @@ from flask_cors import CORS
 from datetime import datetime
 import json
 import os
+from getyttrans import save_transcript_to_json  
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -55,6 +56,32 @@ def save_page_data():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+@app.route('/api/save-youtube-transcript', methods=['POST'])
+def save_youtube_transcript():
+    try:
+        data = request.get_json()
+        youtube_url = data.get("url")
+
+        if not youtube_url:
+            return jsonify({
+                "success": False,
+                "error": "Missing YouTube URL"
+            }), 400
+
+        # Call existing transcript logic
+        file_path = save_transcript_to_json(youtube_url)
+
+        return jsonify({
+            "success": True,
+            "message": "YouTube transcript saved",
+            "filename": os.path.basename(file_path)
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
         }), 500
 
 @app.route('/api/get-saved-pages', methods=['GET'])

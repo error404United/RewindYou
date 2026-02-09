@@ -25,7 +25,43 @@ async function extractData() {
         "Please navigate to a valid webpage (http:// or https://)",
       );
     }
+      if (
+      tab.url.includes("youtube.com/watch") ||
+      tab.url.includes("youtu.be")
+    ) {
+      try {
+        // Send ONLY the URL to backend transcript endpoint
+        const response = await fetch(
+          "http://localhost:5000/api/save-youtube-transcript",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url: tab.url }),
+          },
+        );
 
+        if (!response.ok) {
+          throw new Error("Failed to save YouTube transcript");
+        }
+
+        const data = await response.json();
+
+        resultDiv.innerHTML = `
+          <div class="success-message">
+            ✅ YouTube transcript saved locally<br/>
+            <small>${data.filename}</small>
+          </div>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+      }
+
+      // ⛔ IMPORTANT: stop here so normal page extraction does NOT run
+      return;
+    }
+    
     // Send message to content script
     chrome.tabs.sendMessage(
       tab.id,
