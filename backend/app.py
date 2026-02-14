@@ -3,7 +3,7 @@
 import os
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import bcrypt
@@ -303,7 +303,7 @@ def save_page_data():
         "title": title,
         "summary": summary,
         "word_count": len(content.split()),
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc)
     }
 
     pages.insert_one(doc)
@@ -377,19 +377,66 @@ def search():
 @jwt_required
 def timeline():
     pages = get_pages_collection()
+
+    user_id = request.user["user_id"]
+    month = request.args.get("month")  # format: 2026-02
+
+    query = {"user_id": user_id}
+
+    if month:
+        try:
+            start_date = datetime.strptime(month + "-01", "%Y-%m-%d")
+
+            # calculate next month
+            if start_date.month == 12:
+                end_date = datetime(start_date.year + 1, 1, 1)
+            else:
+                end_date = datetime(start_date.year, start_date.month + 1, 1)
+
+            query["created_at"] = {
+                "$gte": start_date,
+                "$lt": end_date
+            }
+
+        except ValueError:
+            return jsonify({"error": "Invalid month format. Use YYYY-MM"}), 400
+
     results = (
-        pages.find({"user_id": request.user["user_id"]}).sort("created_at", -1).limit(20)
+        pages.find(query)
+        .sort("created_at", 1)  # ASC for timeline flow
     )
+
     data = [
         {
-            "id": doc["_id"],
+            "id": str(doc["_id"]),
             "title": doc.get("title"),
             "url": doc.get("url"),
-            "timestamp": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+            "summary": doc.get("summary"),
+            "word_count": doc.get("word_count"),
+            "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
         }
         for doc in results
     ]
+
     return jsonify(data), 200
+
+@app.route("/api/timeline/<entry_id>", methods=["DELETE"])
+@jwt_required
+def delete_timeline_entry(entry_id):
+    pages = get_pages_collection()
+
+    user_id = request.user["user_id"]
+
+    result = pages.delete_one({
+        "_id": entry_id,
+        "user_id": user_id
+    })
+
+    if result.deleted_count == 0:
+        return jsonify({"error": "Entry not found"}), 404
+
+    return jsonify({"message": "Entry deleted successfully"}), 200
+
 
 
 if __name__ == "__main__":

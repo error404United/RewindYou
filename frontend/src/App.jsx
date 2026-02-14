@@ -19,7 +19,7 @@ function App() {
       <Route path="/login" element={<Auth mode="login" />} />
       <Route path="/signup" element={<Auth mode="signup" />} />
       <Route path="/home" element={<PrivateRoute element={<Home />} />} />
-      <Route path="/timeline" element={<TimelinePage/>} />
+      <Route path="/timeline" element={<PrivateRoute element={<TimelinePage />}/>} />
     </Routes>
   );
 }

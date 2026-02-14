@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Globe,
   TvMinimalPlay,
@@ -6,160 +6,197 @@ import {
   X,
   Trash2,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles
 } from "lucide-react";
 import "../styles/timeline.css";
-
-const mockData = {
-  "2026-02": {
-    "02 February 2026": [
-      {
-        id: 1,
-        title: "Introduction to Compiler Design",
-        type: "webpage",
-        time: "08:45 AM",
-        url: "https://example.com/compiler-intro",
-        content_summary:
-          "Overview of compiler phases including lexical analysis, parsing, semantic analysis, optimization, and code generation.",
-      },
-      {
-        id: 2,
-        title: "Lexical Analysis Explained",
-        type: "youtube",
-        time: "03:20 PM",
-        url: "https://youtube.com/lexical-analysis",
-        content_summary:
-          "Video explanation of tokenization, regular expressions, and how lexical analyzers work in modern compilers.",
-      },
-    ],
-
-    "05 February 2026": [
-      {
-        id: 3,
-        title: "Understanding Transformers Architecture",
-        type: "webpage",
-        time: "09:12 AM",
-        url: "https://example.com/transformers",
-        content_summary:
-          "Detailed explanation of the transformer model architecture including self-attention, multi-head attention, and positional encoding.",
-      },
-      {
-        id: 4,
-        title: "Attention Is All You Need",
-        type: "youtube",
-        time: "04:30 PM",
-        url: "https://youtube.com/attention-paper",
-        content_summary:
-          "Walkthrough of the original transformer research paper and why it revolutionized NLP.",
-      },
-    ],
-
-    "08 February 2026": [
-      {
-        id: 5,
-        title: "NLP Research Paper - BERT Overview",
-        type: "pdf",
-        time: "11:00 AM",
-        url: "https://example.com/bert-paper.pdf",
-        content_summary:
-          "Research paper explaining Bidirectional Encoder Representations from Transformers and pre-training strategies.",
-      },
-    ],
-
-    "10 February 2026": [
-      {
-        id: 6,
-        title: "Graph Algorithms - Dijkstra’s Algorithm",
-        type: "webpage",
-        time: "10:15 AM",
-        url: "https://example.com/dijkstra",
-        content_summary:
-          "Step-by-step breakdown of Dijkstra’s shortest path algorithm with time complexity analysis.",
-      },
-      {
-        id: 7,
-        title: "Minimum Spanning Tree Visualized",
-        type: "youtube",
-        time: "06:10 PM",
-        url: "https://youtube.com/mst-visual",
-        content_summary:
-          "Visual explanation of Prim’s and Kruskal’s algorithms with animated examples.",
-      },
-      {
-        id: 8,
-        title: "Operating Systems - Process Scheduling",
-        type: "webpage",
-        time: "09:00 AM",
-        url: "https://example.com/os-scheduling",
-        content_summary:
-          "Explains CPU scheduling algorithms including FCFS, SJF, Round Robin, and priority scheduling.",
-      },
-    ],
-
-    "14 February 2026": [
-      {
-        id: 9,
-        title: "Deadlock and Resource Allocation",
-        type: "pdf",
-        time: "02:45 PM",
-        url: "https://example.com/deadlock.pdf",
-        content_summary:
-          "Comprehensive notes on deadlock conditions, prevention strategies, and Banker's Algorithm.",
-      },
-    ],
-  },
-};
+import { getTimeline, deleteTimelineEntry } from "../apiClient";
 
 export default function TimelinePage() {
+  const [entries, setEntries] = useState([]);
   const [selectedEntry, setSelectedEntry] = useState(null);
-  const monthData = mockData["2026-02"];
+  const [selectedMonth, setSelectedMonth] = useState("2026-02");
 
-  const getIcon = (type) => {
-    switch (type) {
-      case "webpage":
-        return <Globe size={18} />;
-      case "youtube":
-        return <TvMinimalPlay size={18} />;
-      case "pdf":
-        return <FileText size={18} />;
-      default:
-        return null;
+  const parseUTCDate = (timestamp) => {
+    if (!timestamp) return null;
+    return new Date(timestamp.includes("+") ? timestamp : timestamp + "Z");
+  };
+
+  useEffect(() => {
+    const fetchTimeline = async () => {
+      try {
+        const data = await getTimeline(selectedMonth);
+        setEntries(data);
+      } catch (err) {
+        console.error("Failed to fetch timeline:", err);
+      }
+    };
+
+    fetchTimeline();
+  }, [selectedMonth]);
+
+  const getIcon = (url) => {
+    if (!url) return <Globe size={18} />;
+
+    if (url.includes("youtube.com") || url.includes("youtu.be"))
+      return <TvMinimalPlay size={18} />;
+
+    if (url.endsWith(".pdf")) return <FileText size={18} />;
+
+    return <Globe size={18} />;
+  };
+
+  const formatMonthYear = (monthStr) => {
+    const date = new Date(monthStr + "-01");
+    return date.toLocaleDateString("en-IN", {
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const goToPreviousMonth = () => {
+    const date = new Date(selectedMonth + "-01");
+    date.setMonth(date.getMonth() - 1);
+
+    const newMonth =
+      date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
+
+    setSelectedMonth(newMonth);
+  };
+
+  const goToNextMonth = () => {
+    const date = new Date(selectedMonth + "-01");
+    date.setMonth(date.getMonth() + 1);
+
+    const newMonth =
+      date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
+
+    setSelectedMonth(newMonth);
+  };
+
+  const groupedByDate = entries.reduce((acc, entry) => {
+    const dateObj = parseUTCDate(entry.created_at);
+
+    const formattedDate = dateObj.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+    const formattedTime = dateObj
+      .toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .toLowerCase();
+
+    if (!acc[formattedDate]) {
+      acc[formattedDate] = [];
+    }
+
+    acc[formattedDate].push(entry);
+
+    return acc;
+  }, {});
+
+  const handleDelete = async () => {
+    if (!selectedEntry) return;
+
+    try {
+      await deleteTimelineEntry(selectedEntry.id);
+
+      setEntries((prev) =>
+        prev.filter((entry) => entry.id !== selectedEntry.id),
+      );
+
+      setSelectedEntry(null);
+    } catch (err) {
+      console.error("Delete failed:", err);
     }
   };
 
+  const hasEntries = Object.keys(groupedByDate).length > 0;
+
   return (
     <div className="timeline-container">
-      <div className="timeline-line"></div>
+      <div className="timeline-header">
+        <button className="month-nav-btn" onClick={goToPreviousMonth}>
+          <ChevronLeft size={24} />
+        </button>
 
-      {Object.entries(monthData).map(([date, entries], index) => {
-        const isLeft = index % 2 === 0;
+        <div className="month-title">{formatMonthYear(selectedMonth)}</div>
 
-        return (
-          <div
-            key={date}
-            className={`timeline-item ${isLeft ? "left" : "right"}`}
-          >
-            <div className="timeline-date"><span>{date}</span></div>
+        <button className="month-nav-btn" onClick={goToNextMonth}>
+          <ChevronRight size={24} />
+        </button>
+      </div>
 
-            <div className="timeline-card">
-              {entries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="timeline-entry"
-                  onClick={() => setSelectedEntry(entry)}
-                >
-                  <div className="entry-icon">{getIcon(entry.type)}</div>
-                  <div className="timeline-entry-content">
-                    <div className="entry-title">{entry.title}</div>
-                    <div className="entry-time">{entry.time}</div>
-                  </div>
+      {hasEntries ? (
+        Object.entries(groupedByDate).map(([date, dayEntries], index) => {
+          const isLeft = index % 2 === 0;
+
+          return (
+            <>
+              <div className="timeline-line"></div>
+              <div
+                key={date}
+                className={`timeline-item ${isLeft ? "left" : "right"}`}
+              >
+                <div className="timeline-date">
+                  <span>{date}</span>
                 </div>
-              ))}
-            </div>
 
-            <div className="timeline-dot"></div>
+                <div className="timeline-card">
+                  {dayEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="timeline-entry"
+                      onClick={() =>
+                        setSelectedEntry({
+                          ...entry,
+                          date,
+                        })
+                      }
+                    >
+                      <div className="entry-icon">{getIcon(entry.type)}</div>
+
+                      <div className="timeline-entry-content">
+                        <div className="entry-title">{entry.title}</div>
+                        <div className="entry-time">
+                          {parseUTCDate(entry.created_at)
+                            .toLocaleTimeString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true,
+                            })
+                            .toLowerCase()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="timeline-dot"></div>
+              </div>
+            </>
+          );
+        })
+      ) : (
+        <div className="empty-state">
+          <div className="empty-illustration">
+            <img src="/emptyIllustration.svg" alt="No timeline entries" />
           </div>
-        );
-      })}
+
+          <h3>No memories in {formatMonthYear(selectedMonth)} yet</h3>
+
+          <p>Start browsing and your captured content will appear here <Sparkles size={16}/></p>
+        </div>
+      )}
 
       <div className={`detail-panel ${selectedEntry ? "open" : ""}`}>
         {selectedEntry && (
@@ -176,7 +213,15 @@ export default function TimelinePage() {
             </div>
 
             <div className="detail-date">
-              {selectedEntry.date} • {selectedEntry.time}
+              {selectedEntry.date} •
+              {parseUTCDate(selectedEntry.created_at)
+                .toLocaleTimeString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                })
+                .toLowerCase()}
             </div>
 
             <a
@@ -189,11 +234,9 @@ export default function TimelinePage() {
               {selectedEntry.url}
             </a>
 
-            <div className="detail-summary">
-              {selectedEntry.content_summary}
-            </div>
+            <div className="detail-summary">{selectedEntry.summary}</div>
 
-            <button className="delete-btn">
+            <button className="delete-btn" onClick={handleDelete}>
               <Trash2 size={16} />
               Delete Entry
             </button>

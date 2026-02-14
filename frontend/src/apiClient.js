@@ -98,6 +98,33 @@ export async function search(query) {
   return res.json();
 }
 
+export async function getTimeline(month) {
+  const res = await apiRequest(`/timeline?month=${month}`, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || err.message || "Failed to fetch timeline");
+  }
+
+  return res.json();
+}
+
+export async function deleteTimelineEntry(id) {
+  const res = await apiRequest(`/timeline/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || err.message || "Delete failed");
+  }
+
+  return res.json();
+}
+
+
 export function getStoredTokens() {
   return getTokens();
 }
