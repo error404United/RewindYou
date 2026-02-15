@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../apiClient";
+import "../styles/auth.css";
 
 export default function LoginForm({ switchToSignup }) {
   const [email, setEmail] = useState("");

@@ -25,13 +25,6 @@ export default function Home() {
 
   return (
     <div className="home-container">
-      <div className="profile">
-        <img
-          src="https://cataas.com/cat?width=60&height=60"
-          alt="User profile"
-        />
-      </div>
-
       {results.length === 0 ? (
         <div className="search-wrapper">
           <h1 className="search-title">RewindYou</h1>
@@ -42,7 +35,9 @@ export default function Home() {
             loading={loading}
           />
           {error && <p className="error-text">{error}</p>}
-          {loading && <p className="muted">Searching...</p>}
+          {loading && (
+            <div className="spinner"></div>
+          )}
         </div>
       ) : (
         <div className="result-wrapper">

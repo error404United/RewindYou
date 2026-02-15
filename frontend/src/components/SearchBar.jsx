@@ -18,7 +18,7 @@ export default function SearchBar({ query, setQuery, onSearch, loading = false }
         disabled={loading}
       />
       <button className="search-btn" onClick={onSearch} disabled={loading}>
-        {loading ? "..." : <ArrowRight size={20} />}
+        {loading ? <ArrowRight size={28} color="#9ca3af"/> : <ArrowRight size={28} />}
       </button>
     </div>
   );
