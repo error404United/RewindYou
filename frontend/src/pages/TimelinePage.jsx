@@ -8,12 +8,13 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import "../styles/timeline.css";
 import { getTimeline, deleteTimelineEntry } from "../apiClient";
 
 export default function TimelinePage() {
+  const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState("2026-02");
@@ -26,10 +27,13 @@ export default function TimelinePage() {
   useEffect(() => {
     const fetchTimeline = async () => {
       try {
+        setLoading(true);
         const data = await getTimeline(selectedMonth);
         setEntries(data);
       } catch (err) {
         console.error("Failed to fetch timeline:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -135,7 +139,11 @@ export default function TimelinePage() {
         </button>
       </div>
 
-      {hasEntries ? (
+      {loading ? (
+        <div className="spinner-container">
+          <div className="spinner"></div>
+        </div>
+      ) : hasEntries ? (
         Object.entries(groupedByDate).map(([date, dayEntries], index) => {
           const isLeft = index % 2 === 0;
 
@@ -194,7 +202,10 @@ export default function TimelinePage() {
 
           <h3>No memories in {formatMonthYear(selectedMonth)} yet</h3>
 
-          <p>Start browsing and your captured content will appear here <Sparkles size={16}/></p>
+          <p>
+            Start browsing and your captured content will appear here{" "}
+            <Sparkles size={16} />
+          </p>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
 import TimelinePage from "./pages/TimelinePage";
+import Layout from "./components/Layout";
 import { getStoredTokens } from "./apiClient";
 
 function App() {
@@ -18,8 +19,10 @@ function App() {
       <Route path="/" element={<Navigate to="/login" />} />
       <Route path="/login" element={<Auth mode="login" />} />
       <Route path="/signup" element={<Auth mode="signup" />} />
-      <Route path="/home" element={<PrivateRoute element={<Home />} />} />
-      <Route path="/timeline" element={<PrivateRoute element={<TimelinePage />}/>} />
+      <Route element={<PrivateRoute element={<Layout />} />}>
+        <Route path="/home" element={<Home />} />
+        <Route path="/timeline" element={<TimelinePage />} />
+      </Route>
     </Routes>
   );
 }

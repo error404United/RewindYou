@@ -17,7 +17,7 @@ body {
   position: relative;
 }
 
-.profile {
+/* .profile {
   position: absolute;
   top: 24px;
   right: 24px;
@@ -30,7 +30,7 @@ body {
   object-fit: cover;
   cursor: pointer;
 }
-
+ */
 .search-wrapper {
   display: flex;
   align-items: center;
