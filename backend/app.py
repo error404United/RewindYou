@@ -23,6 +23,7 @@ from auth.jwt_utils import (
     generate_access_token,
     generate_refresh_token,
     verify_refresh_token,
+    verify_access_token
 )
 from auth.middleware import jwt_required
 from db.chroma_db import add_embedding, query_embeddings
@@ -188,6 +189,57 @@ def login():
         }
     ), 200
 
+@app.route("/api/me", methods=["GET"])
+def me():
+    users = get_users_collection()
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise ValidationError("Authorization header missing", None, 401)
+
+    token = auth_header.split(" ")[1]
+
+    try:
+        payload = verify_access_token(token)
+    except jwt.InvalidTokenError:
+        raise ValidationError("Invalid access token", None, 401)
+
+    user = users.find_one({"_id": payload.get("user_id")})
+
+    if not user:
+        raise ValidationError("User not found", None, 404)
+
+    return jsonify({
+        "id": str(user["_id"]),
+        "username": user.get("username"),
+        "email": user.get("email"),
+    }), 200
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    users = get_users_collection()
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise ValidationError("Authorization header missing", None, 401)
+
+    token = auth_header.split(" ")[1]
+
+    try:
+        payload = verify_access_token(token)
+    except jwt.InvalidTokenError:
+        raise ValidationError("Invalid access token", None, 401)
+
+    user_id = payload.get("user_id")
+
+    new_version = str(uuid.uuid4())
+
+    users.update_one(
+        {"_id": user_id},
+        {"$set": {"token_version": new_version}}
+    )
+
+    return jsonify({"message": "Logged out successfully"}), 200
 
 @app.route("/api/refresh", methods=["POST"])
 @limiter.limit("5 per minute")

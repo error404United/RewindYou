@@ -1,4 +1,6 @@
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/$/, "");
+const API_BASE = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+).replace(/\/$/, "");
 
 function getTokens() {
   try {
@@ -20,11 +22,14 @@ async function refreshToken(refreshToken) {
   const res = await fetch(`${API_BASE}/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken })
+    body: JSON.stringify({ refresh_token: refreshToken }),
   });
   if (!res.ok) return null;
   const body = await res.json();
-  const updated = { accessToken: body.access_token, refreshToken: body.refresh_token };
+  const updated = {
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token,
+  };
   storeTokens(updated);
   return updated;
 }
@@ -34,7 +39,10 @@ export async function apiRequest(path, options = {}, config = {}) {
   const url = `${API_BASE}${basePath.startsWith("/") ? "" : "/"}${basePath}`;
 
   const tokens = getTokens();
-  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
   if (!config.skipAuth && tokens.accessToken) {
     headers.Authorization = `Bearer ${tokens.accessToken}`;
   }
@@ -58,14 +66,17 @@ export async function login(email, password) {
   const res = await apiRequest(
     "/login",
     { method: "POST", body: JSON.stringify({ email, password }) },
-    { skipAuth: true }
+    { skipAuth: true },
   );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || err.message || "Login failed");
   }
   const body = await res.json();
-  const tokens = { accessToken: body.access_token, refreshToken: body.refresh_token };
+  const tokens = {
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token,
+  };
   storeTokens(tokens);
   return { tokens, user: body.user };
 }
@@ -74,14 +85,17 @@ export async function signup(username, email, password) {
   const res = await apiRequest(
     "/signup",
     { method: "POST", body: JSON.stringify({ username, email, password }) },
-    { skipAuth: true }
+    { skipAuth: true },
   );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || err.message || "Signup failed");
   }
   const body = await res.json();
-  const tokens = { accessToken: body.access_token, refreshToken: body.refresh_token };
+  const tokens = {
+    accessToken: body.access_token,
+    refreshToken: body.refresh_token,
+  };
   storeTokens(tokens);
   return { tokens, user: body.user };
 }
@@ -89,7 +103,7 @@ export async function signup(username, email, password) {
 export async function search(query) {
   const res = await apiRequest("/search", {
     method: "POST",
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -124,6 +138,27 @@ export async function deleteTimelineEntry(id) {
   return res.json();
 }
 
+export async function getCurrentUser() {
+  const res = await apiRequest("/me", { method: "GET" });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || err.message || "Failed to fetch user");
+  }
+
+  return res.json();
+}
+
+export async function logout() {
+  const res = await apiRequest("/logout", { method: "POST" });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || err.message || "Logout failed");
+  }
+
+  clearTokens();
+}
 
 export function getStoredTokens() {
   return getTokens();

@@ -1,5 +1,5 @@
 .sidebar {
-  width: 200px;
+  width: 220px;
   height: 100vh;
   background-color: #18181f;
   border-right: 1px solid rgba(139, 92, 246, 0.2);
@@ -63,7 +63,7 @@
 
 .sidebar-bottom {
   border-top: 1px solid rgba(139, 92, 246, 0.2);
-  padding: 16px;
+  padding: 8px 16px;
 }
 
 .profile {
@@ -71,6 +71,50 @@
   align-items: center;
   gap: 10px;
   cursor: pointer;
+  position: relative;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.profile:hover {
+  background-color: #3a3a48;
+}
+
+.user-icon{
+  margin-top: 2px;
+}
+
+.profile-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: absolute;
+  bottom: 60px;
+  left: 10px;
+  width: 200px;
+  color: #e5e7eb;
+  background: #0f0f14;
+  border: 1px solid #2a2a35;
+  border-radius: 10px;
+  padding: 12px;
+  z-index: 100;
+}
+
+.popup-user-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.popup-name{
+  color: #e5e7eb;
+}
+
+.popup-email{
+  color: #959698;
+  font-size: 12px;
 }
 
 .profile-avatar {
@@ -84,5 +128,15 @@
 .profile-name {
   font-size: 18px;
   font-weight: 500;
-  color: #a855f7;
+}
+
+.popup-logout {
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  margin-left: 4px;
+}
+
+.logout-icon{
+  margin-top: 4px;
 }
