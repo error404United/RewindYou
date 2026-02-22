@@ -50,10 +50,13 @@ async function extractData() {
 function displayExtractedData(data) {
   const resultDiv = document.getElementById("result");
   
-  // Truncate content for display (show first 500 characters)
-  const contentPreview = data.articleContent && data.articleContent.length > 500 
-    ? data.articleContent.substring(0, 500) + '...' 
-    : data.articleContent || 'No content available';
+  // 1. Force the content to be a string, and default to empty if undefined
+  const safeContent = (data && data.articleContent) ? String(data.articleContent) : "";
+  
+  // 2. Safely truncate content for display
+  const contentPreview = safeContent.length > 500 
+    ? safeContent.substring(0, 500) + '...' 
+    : safeContent || 'No content available';
   
   let html = `
     <div class="extracted-data">
@@ -61,10 +64,10 @@ function displayExtractedData(data) {
       
       <div class="data-section">
         <h4>Basic Information</h4>
-        <p><strong>URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>
-        <p><strong>Title:</strong> ${data.title}</p>
-        <p><strong>Date:</strong> ${data.date}</p>
-        <p><strong>Time:</strong> ${data.time}</p>
+        <p><strong>URL:</strong> <a href="${data.url || '#'}" target="_blank">${data.url || 'Unknown'}</a></p>
+        <p><strong>Title:</strong> ${data.title || 'Unknown Title'}</p>
+        <p><strong>Date:</strong> ${data.date || ''}</p>
+        <p><strong>Time:</strong> ${data.time || ''}</p>
       </div>
 
       <div class="data-section">
@@ -74,8 +77,8 @@ function displayExtractedData(data) {
 
       <div class="data-section">
         <h4>Content Statistics</h4>
-        <p><strong>Word Count:</strong> ${data.wordCount}</p>
-        <p><strong>Paragraph Count:</strong> ${data.paragraphCount}</p>
+        <p><strong>Word Count:</strong> ${data.wordCount || 0}</p>
+        <p><strong>Paragraph Count:</strong> ${data.paragraphCount || 0}</p>
       </div>
   `;
 

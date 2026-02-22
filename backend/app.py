@@ -330,19 +330,30 @@ def save_page_data():
     title = (data.get("title") or "Untitled").strip() or "Untitled"
     content = data.get("articleContent") or data.get("content") or ""
 
+    print(f"\n--- NEW EXTRACTION REQUEST ---")
+    print(f"User ID: {request.user.get('user_id')}")
+    print(f"URL: {url}")
+    print(f"Content Length: {len(content)} characters")
+
     _validate_url(url)
     if len(content) < MIN_CONTENT_LENGTH:
+        print("❌ FAILED: Content too short")
         raise ValidationError("Content too short", "content")
     if len(content) > MAX_CONTENT_LENGTH:
+        print("❌ FAILED: Content too long")
         raise ValidationError("Content too long", "content")
 
     try:
+        print("⏳ Running AI Summarization...")
         summary = data.get("summary") or summarize_text(content)
+        
+        print("⏳ Running AI Embedding...")
         embedding = embed_text(summary).tolist()
     except ValidationError:
         raise
     except Exception as exc:
         app.logger.exception(exc)
+        print("❌ FAILED: AI Processing crashed")
         resp = jsonify({"error": "AI processing failed"})
         resp.headers["Retry-After"] = "30"
         return resp, 503
@@ -358,7 +369,9 @@ def save_page_data():
         "created_at": datetime.now(timezone.utc)
     }
 
+    print("💾 Attempting to save to MongoDB...")
     pages.insert_one(doc)
+    print("✅ Successfully saved to MongoDB!")
 
     add_embedding(
         doc_id=page_id,

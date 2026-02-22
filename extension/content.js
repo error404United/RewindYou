@@ -1,50 +1,49 @@
 // Function to extract comprehensive page data
-function extractPageData(){
+// Function to extract comprehensive page data using Readability.js
+function extractPageData() {
   const MAX_CONTENT = 50000; // Truncate to 50k chars to avoid backend limits
   
-  // Get main content (try different selectors for article content)
   let articleContent = '';
-  
-  // Try to find article content using common selectors
-  const contentSelectors = [
-    'article',
-    'main',
-    '[role="main"]',
-    '.post-content',
-    '.article-content',
-    '.entry-content',
-    '.content'
-  ];
-  
-  let contentElement = null;
-  for (const selector of contentSelectors) {
-    contentElement = document.querySelector(selector);
-    if (contentElement && contentElement.innerText.trim().length > 100) {
-      articleContent = contentElement.innerText;
-      break;
+  let title = document.title;
+  let byline = document.querySelector('meta[name="author"]')?.content || '';
+  let excerpt = document.querySelector('meta[name="description"]')?.content || '';
+
+  try {
+    const documentClone = document.cloneNode(true);
+    const reader = new Readability(documentClone);
+    const article = reader.parse();
+
+    if (article && article.textContent) {
+      articleContent = article.textContent.trim();
+      title = article.title || title;
+      byline = article.byline || byline;
+      excerpt = article.excerpt || excerpt;
+    } else {
+      // Safe fallback if Readability returns null
+      articleContent = (document.body && document.body.innerText) ? document.body.innerText.trim() : "No readable text found on this page.";
     }
+  } catch (error) {
+    console.error("Readability parsing error:", error);
+    // Safe fallback if cloning or parsing throws a fatal error
+    articleContent = (document.body && document.body.innerText) ? document.body.innerText.trim() : "No readable text found on this page.";
   }
-  
-  // If no article element found, use body text
-  if (!articleContent) {
-    articleContent = document.body.innerText;
-  }
-  
-  // Truncate to avoid exceeding backend limit
-  if (articleContent.length > MAX_CONTENT) {
+
+  // Safe truncation check
+  if (articleContent && articleContent.length > MAX_CONTENT) {
     articleContent = articleContent.substring(0, MAX_CONTENT) + '...';
   }
 
+  // Build the exact payload your popup/backend expects
   const pageData = {
     url: window.location.href,
-    title: document.title,
+    title: title,
     content: document.body.innerText, // Full page content (backup)
-    articleContent: articleContent, // Main content
+    articleContent: articleContent,   // Cleaned main content from Readability
     date: new Date().toLocaleDateString(),
     time: new Date().toLocaleTimeString(),
-    metaDescription: document.querySelector('meta[name="description"]')?.content || '',
+    metaDescription: excerpt,
     metaKeywords: document.querySelector('meta[name="keywords"]')?.content || '',
-    author: document.querySelector('meta[name="author"]')?.content || '',
+    author: byline,
     wordCount: articleContent.split(/\s+/).filter(word => word.length > 0).length,
     paragraphCount: articleContent.split(/\n\n+/).filter(p => p.trim().length > 0).length
   };
@@ -52,7 +51,7 @@ function extractPageData(){
   return pageData;
 }
 
-// Listen for messages from the popup
+// Listen for messages from the popup (Unchanged)
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (req.action === "extractPageData") {
     try {
