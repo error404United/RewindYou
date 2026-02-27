@@ -32,7 +32,7 @@ dist/
 
 # dependencies
 node_modules/
-
+.vite/
 # production build
 dist/
 
