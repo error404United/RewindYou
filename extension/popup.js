@@ -5,6 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
   hydrateAuthStatus();
 });
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function extractData() {
   const resultDiv = document.getElementById("result");
   resultDiv.innerHTML = '<div class="loading"><div class="loader"></div><p>Extracting page data...</p></div>';
@@ -53,16 +63,25 @@ async function extractData() {
         statusMsg.textContent = 'YouTube transcript saved & processed!';
         resultDiv.insertBefore(statusMsg, resultDiv.firstChild);
       } catch (err) {
-        resultDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+        resultDiv.innerHTML = `<div class="error">Error: ${escapeHtml(err.message)}</div>`;
       }
       return; // Stop here — skip normal page extraction
     }
 
-    chrome.tabs.sendMessage(tab.id, { action: "extractPageData" }, async (response) => {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["Readability.js", "content.js"]
+    }, () => {
       if (chrome.runtime.lastError) {
-        resultDiv.innerHTML = `<div class="error">Error: ${chrome.runtime.lastError.message}<br><br>Please make sure you're on a valid webpage and try reloading the page.</div>`;
+        resultDiv.innerHTML = `<div class="error">Error: ${escapeHtml(chrome.runtime.lastError.message)}<br><br>Please make sure you're on a valid webpage and try reloading the page.</div>`;
         return;
       }
+
+      chrome.tabs.sendMessage(tab.id, { action: "extractPageData" }, async (response) => {
+        if (chrome.runtime.lastError) {
+          resultDiv.innerHTML = `<div class="error">Error: ${escapeHtml(chrome.runtime.lastError.message)}<br><br>Please make sure you're on a valid webpage and try reloading the page.</div>`;
+          return;
+        }
 
       if (response && response.success) {
         displayExtractedData(response.data);
@@ -83,9 +102,10 @@ async function extractData() {
         throw new Error(response?.error || 'Failed to extract data');
       }
     });
+    }); // end chrome.scripting.executeScript
   } catch (error) {
     console.error('Error:', error);
-    resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+    resultDiv.innerHTML = `<div class="error">Error: ${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -106,21 +126,21 @@ function displayExtractedData(data) {
       
       <div class="data-section">
         <h4>Basic Information</h4>
-        <p><strong>URL:</strong> <a href="${data.url || '#'}" target="_blank">${data.url || 'Unknown'}</a></p>
-        <p><strong>Title:</strong> ${data.title || 'Unknown Title'}</p>
-        <p><strong>Date:</strong> ${data.date || ''}</p>
-        <p><strong>Time:</strong> ${data.time || ''}</p>
+        <p><strong>URL:</strong> <a href="${escapeHtml(data.url) || '#'}" target="_blank">${escapeHtml(data.url) || 'Unknown'}</a></p>
+        <p><strong>Title:</strong> ${escapeHtml(data.title) || 'Unknown Title'}</p>
+        <p><strong>Date:</strong> ${escapeHtml(data.date) || ''}</p>
+        <p><strong>Time:</strong> ${escapeHtml(data.time) || ''}</p>
       </div>
 
       <div class="data-section">
         <h4>Content Preview</h4>
-        <div class="content-preview">${contentPreview}</div>
+        <div class="content-preview">${escapeHtml(contentPreview)}</div>
       </div>
 
       <div class="data-section">
         <h4>Content Statistics</h4>
-        <p><strong>Word Count:</strong> ${data.wordCount || 0}</p>
-        <p><strong>Paragraph Count:</strong> ${data.paragraphCount || 0}</p>
+        <p><strong>Word Count:</strong> ${parseInt(data.wordCount) || 0}</p>
+        <p><strong>Paragraph Count:</strong> ${parseInt(data.paragraphCount) || 0}</p>
       </div>
   `;
 
@@ -130,9 +150,9 @@ function displayExtractedData(data) {
       <div class="data-section">
         <h4>Metadata</h4>
     `;
-    if (data.metaDescription) html += `<p><strong>Description:</strong> ${data.metaDescription}</p>`;
-    if (data.metaKeywords) html += `<p><strong>Keywords:</strong> ${data.metaKeywords}</p>`;
-    if (data.author) html += `<p><strong>Author:</strong> ${data.author}</p>`;
+    if (data.metaDescription) html += `<p><strong>Description:</strong> ${escapeHtml(data.metaDescription)}</p>`;
+    if (data.metaKeywords) html += `<p><strong>Keywords:</strong> ${escapeHtml(data.metaKeywords)}</p>`;
+    if (data.author) html += `<p><strong>Author:</strong> ${escapeHtml(data.author)}</p>`;
     html += `</div>`;
   }
   

@@ -5,7 +5,6 @@ import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-
 import bcrypt
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
@@ -26,7 +25,7 @@ from auth.jwt_utils import (
     verify_access_token
 )
 from auth.middleware import jwt_required
-from db.chroma_db import add_embedding, query_embeddings
+from db.chroma_db import add_embedding, delete_embedding, query_embeddings
 from db.mongodb import get_pages_collection, get_users_collection
 from get_youtube_transcript import fetch_transcript, save_transcript_to_json
 
@@ -35,7 +34,8 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-CORS(app)
+assert app.secret_key, "FLASK_SECRET_KEY environment variable must be set"
+CORS(app, origins=[os.getenv("CORS_ORIGIN", "http://localhost:5173")])
 
 limiter = Limiter(get_remote_address, app=app, default_limits=["500 per hour"])
 
@@ -129,7 +129,7 @@ def signup():
         "email": email,
         "password": hashed_password,
         "token_version": token_version,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
 
     try:
@@ -191,21 +191,10 @@ def login():
     ), 200
 
 @app.route("/api/me", methods=["GET"])
+@jwt_required
 def me():
     users = get_users_collection()
-
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise ValidationError("Authorization header missing", None, 401)
-
-    token = auth_header.split(" ")[1]
-
-    try:
-        payload = verify_access_token(token)
-    except jwt.InvalidTokenError:
-        raise ValidationError("Invalid access token", None, 401)
-
-    user = users.find_one({"_id": payload.get("user_id")})
+    user = users.find_one({"_id": request.user["user_id"]})
 
     if not user:
         raise ValidationError("User not found", None, 404)
@@ -217,24 +206,12 @@ def me():
     }), 200
 
 @app.route("/api/logout", methods=["POST"])
+@jwt_required
 def logout():
     users = get_users_collection()
-
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise ValidationError("Authorization header missing", None, 401)
-
-    token = auth_header.split(" ")[1]
-
-    try:
-        payload = verify_access_token(token)
-    except jwt.InvalidTokenError:
-        raise ValidationError("Invalid access token", None, 401)
-
-    user_id = payload.get("user_id")
+    user_id = request.user["user_id"]
 
     new_version = str(uuid.uuid4())
-
     users.update_one(
         {"_id": user_id},
         {"$set": {"token_version": new_version}}
@@ -536,9 +513,9 @@ def search():
         matches.append(
             {
                 "page_id": page_id,
-                "title": meta.get("title") or doc.get("title") if doc else None,
-                "url": meta.get("url") or doc.get("url") if doc else None,
-                "summary": meta.get("summary") or doc.get("summary") if doc else None,
+                "title": meta.get("title") or (doc.get("title") if doc else None),
+                "url": meta.get("url") or (doc.get("url") if doc else None),
+                "summary": meta.get("summary") or (doc.get("summary") if doc else None),
                 "score": distances[idx] if idx < len(distances) else None,
                 "created_at": meta.get("created_at")
                 or (doc.get("created_at").isoformat() if doc and doc.get("created_at") else None),
@@ -610,9 +587,14 @@ def delete_timeline_entry(entry_id):
     if result.deleted_count == 0:
         return jsonify({"error": "Entry not found"}), 404
 
+    try:
+        delete_embedding(entry_id)
+    except Exception as exc:
+        app.logger.warning("Failed to delete embedding for %s: %s", entry_id, exc)
+
     return jsonify({"message": "Entry deleted successfully"}), 200
 
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+    app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", host="0.0.0.0", port=int(os.getenv("PORT", "5000")))

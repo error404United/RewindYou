@@ -51,7 +51,7 @@ function extractPageData() {
   return pageData;
 }
 
-// Listen for messages from the popup (Unchanged)
+// Listen for messages from the popup
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (req.action === "extractPageData") {
     try {
@@ -60,15 +60,6 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     } catch (error) {
       sendResponse({ success: false, error: error.message });
     }
-  }
-  if (req.action === "getAuthTokens") {
-    chrome.storage.local.get(["accessToken", "refreshToken"], (stored) => {
-      sendResponse({
-        success: true,
-        accessToken: stored.accessToken,
-        refreshToken: stored.refreshToken
-      });
-    });
   }
   return true; // Keep the message channel open for async response
 });

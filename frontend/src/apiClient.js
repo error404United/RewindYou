@@ -18,11 +18,13 @@ function clearTokens() {
   localStorage.removeItem("tokens");
 }
 
-async function refreshToken(refreshToken) {
+let refreshPromise = null;
+
+async function refreshToken(token) {
   const res = await fetch(`${API_BASE}/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    body: JSON.stringify({ refresh_token: token }),
   });
   if (!res.ok) return null;
   const body = await res.json();
@@ -50,7 +52,12 @@ export async function apiRequest(path, options = {}, config = {}) {
   let response = await fetch(url, { ...options, headers });
 
   if (response.status === 401 && tokens.refreshToken && !config.skipRefresh) {
-    const refreshed = await refreshToken(tokens.refreshToken);
+    if (!refreshPromise) {
+      refreshPromise = refreshToken(tokens.refreshToken).finally(() => {
+        refreshPromise = null;
+      });
+    }
+    const refreshed = await refreshPromise;
     if (refreshed?.accessToken) {
       headers.Authorization = `Bearer ${refreshed.accessToken}`;
       response = await fetch(url, { ...options, headers });

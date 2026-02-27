@@ -49,4 +49,12 @@ def query_embeddings(
     )
 
 
-__all__ = ["add_embedding", "query_embeddings", "get_collection"]
+def delete_embedding(
+    doc_id: str,
+    collection_name: str = "rewindyou_memory",
+) -> None:
+    collection = get_collection(collection_name)
+    collection.delete(ids=[doc_id])
+
+
+__all__ = ["add_embedding", "delete_embedding", "query_embeddings", "get_collection"]
