@@ -28,6 +28,7 @@ from auth.jwt_utils import (
 from auth.middleware import jwt_required
 from db.chroma_db import add_embedding, query_embeddings
 from db.mongodb import get_pages_collection, get_users_collection
+from get_youtube_transcript import fetch_transcript, save_transcript_to_json
 
 
 load_dotenv()
@@ -319,6 +320,8 @@ def embed_route():
     return jsonify({"embedding": embedding}), 200
 
 
+# CONTENT CAPTURE - Webpages
+
 @app.route("/api/save-page-data", methods=["POST"])
 @jwt_required
 @limiter.limit("10 per minute", key_func=_rate_key_user)
@@ -365,6 +368,7 @@ def save_page_data():
         "url": url,
         "title": title,
         "summary": summary,
+        "source_type": "webpage",
         "word_count": len(content.split()),
         "created_at": datetime.now(timezone.utc)
     }
@@ -388,6 +392,112 @@ def save_page_data():
 
     return jsonify({"message": "Saved", "page_id": page_id, "summary": summary}), 201
 
+#CONTENT CAPTURE - YouTube Transcripts
+@app.route('/api/save-youtube-transcript', methods=['POST'])
+@jwt_required
+@limiter.limit("10 per minute", key_func=_rate_key_user)
+def save_youtube_transcript():
+    pages = get_pages_collection()
+    data = request.get_json(silent=True) or {}
+    youtube_url = (data.get("url") or "").strip()
+
+    if not youtube_url:
+        raise ValidationError("Missing YouTube URL", "url")
+
+    _validate_url(youtube_url)
+
+    print(f"\n--- YOUTUBE TRANSCRIPT REQUEST ---")
+    print(f"User ID: {request.user.get('user_id')}")
+    print(f"URL: {youtube_url}")
+
+    # Fetch transcript from YouTube
+    try:
+        transcript_data = fetch_transcript(youtube_url)
+    except ValueError as e:
+        raise ValidationError(str(e), "url")
+    except Exception as e:
+        app.logger.exception(e)
+        return jsonify({"error": "Failed to fetch YouTube transcript"}), 502
+
+    video_id = transcript_data["video_id"]
+    lines = transcript_data["transcript"]
+    content = " ".join(lines)
+    title = f"YouTube: {video_id}"
+    word_count = len(content.split())
+
+    print(f"Video ID: {video_id}")
+    print(f"Transcript Length: {len(content)} characters, {word_count} words")
+
+    if len(content) < MIN_CONTENT_LENGTH:
+        raise ValidationError("Transcript too short", "content")
+    if len(content) > MAX_CONTENT_LENGTH:
+        content = content[:MAX_CONTENT_LENGTH]
+
+    # AI processing
+    try:
+        print("⏳ Summarizing transcript...")
+        summary = summarize_text(content)
+
+        print("⏳ Generating embedding...")
+        embedding = embed_text(summary).tolist()
+    except Exception as exc:
+        app.logger.exception(exc)
+        print("❌ FAILED: AI Processing crashed")
+        resp = jsonify({"error": "AI processing failed"})
+        resp.headers["Retry-After"] = "30"
+        return resp, 503
+
+    # Save to MongoDB
+    page_id = str(uuid.uuid4())
+    doc = {
+        "_id": page_id,
+        "user_id": request.user["user_id"],
+        "url": youtube_url,
+        "title": title,
+        "summary": summary,
+        "source_type": "youtube_transcript",
+        "video_id": video_id,
+        "word_count": word_count,
+        "created_at": datetime.now(timezone.utc),
+    }
+
+    print("💾 Saving to MongoDB...")
+    pages.insert_one(doc)
+    print("✅ Saved to MongoDB!")
+
+    # Save to ChromaDB
+    add_embedding(
+        doc_id=page_id,
+        embedding=embedding,
+        metadata={
+            "page_id": page_id,
+            "user_id": request.user["user_id"],
+            "url": youtube_url,
+            "title": title,
+            "summary": summary,
+            "created_at": doc["created_at"].isoformat(),
+        },
+    )
+
+    # Also save local JSON backup
+    try:
+        save_transcript_to_json(youtube_url)
+    except Exception:
+        pass  # Non-critical, DB save already succeeded
+
+    # Build content preview for frontend display
+    content_preview = content[:500] + "..." if len(content) > 500 else content
+
+    return jsonify({
+        "success": True,
+        "message": "Saved",
+        "page_id": page_id,
+        "summary": summary,
+        "url": youtube_url,
+        "title": title,
+        "word_count": word_count,
+        "content_preview": content_preview,
+    }), 201
 
 @app.route("/api/search", methods=["POST"])
 @jwt_required

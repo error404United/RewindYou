@@ -16,6 +16,48 @@ async function extractData() {
       throw new Error('Please navigate to a valid webpage (http:// or https://)');
     }
 
+    // YouTube transcript handling
+    if (tab.url.includes("youtube.com/watch") || tab.url.includes("youtu.be")) {
+      try {
+        const response = await authFetch('/api/save-youtube-transcript', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: tab.url })
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to save YouTube transcript');
+        }
+
+        const data = await response.json();
+
+        // Build a page-like data object so displayExtractedData works
+        const pageData = {
+          url: data.url,
+          title: data.title,
+          articleContent: data.content_preview,
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString(),
+          wordCount: data.word_count,
+          paragraphCount: 0,
+          metaDescription: data.summary,
+          metaKeywords: '',
+          author: ''
+        };
+
+        displayExtractedData(pageData);
+
+        const statusMsg = document.createElement('div');
+        statusMsg.className = 'success-message';
+        statusMsg.textContent = 'YouTube transcript saved & processed!';
+        resultDiv.insertBefore(statusMsg, resultDiv.firstChild);
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
+      }
+      return; // Stop here — skip normal page extraction
+    }
+
     chrome.tabs.sendMessage(tab.id, { action: "extractPageData" }, async (response) => {
       if (chrome.runtime.lastError) {
         resultDiv.innerHTML = `<div class="error">Error: ${chrome.runtime.lastError.message}<br><br>Please make sure you're on a valid webpage and try reloading the page.</div>`;

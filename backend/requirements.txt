@@ -10,3 +10,4 @@ torch>=2.2
 sentence-transformers>=3.2
 transformers>=4.46
 chromadb>=1.4
+youtube-transcript-api
