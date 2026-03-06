@@ -1,6 +1,7 @@
 """Lightweight wrapper around FLAN-T5 summarization for API usage."""
 
 import os
+import re
 from functools import lru_cache
 from typing import Optional
 
@@ -23,6 +24,13 @@ def _load_components():
     return tokenizer, model, device
 
 
+def _clean_text(text: str) -> str:
+    text = re.sub(r'\[\s*\d+\s*\]', '', text)
+    text = re.sub(r' {2,}', ' ', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def summarize_text(text: str, max_length: Optional[int] = None) -> str:
     if not text or not text.strip():
         raise ValueError("Text to summarize cannot be empty.")
@@ -30,7 +38,7 @@ def summarize_text(text: str, max_length: Optional[int] = None) -> str:
     tokenizer, model, device = _load_components()
 
     inputs = tokenizer(
-        "Summarize the following notes in concise sentences:\n" + text,
+        "Summarize the following notes in concise sentences:\n" + _clean_text(text),
         return_tensors="pt",
         max_length=MAX_INPUT_TOKENS,
         truncation=True,
@@ -44,6 +52,7 @@ def summarize_text(text: str, max_length: Optional[int] = None) -> str:
         min_length=MIN_SUMMARY_TOKENS,
         num_beams=4,
         repetition_penalty=2.5,
+        no_repeat_ngram_size=3,
         length_penalty=0.7,
         early_stopping=True,
     )
@@ -52,6 +61,3 @@ def summarize_text(text: str, max_length: Optional[int] = None) -> str:
 
 
 __all__ = ["summarize_text", "MODEL_NAME", "MAX_INPUT_TOKENS"]
-
-
-
