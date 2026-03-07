@@ -110,7 +110,7 @@ body {
   align-items: center;
   background: #1f1f2e;
   border: 1px solid #2e2e3e;
-  color: #9670ff;
+  color: #a855f7;
   cursor: pointer;
   gap: 0.25rem;
   font-size: 0.85rem;
@@ -179,7 +179,7 @@ body {
   gap: 6px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #8b5cf6;
+  color: #a855f7;
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
