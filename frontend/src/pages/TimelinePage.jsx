@@ -17,7 +17,12 @@ export default function TimelinePage() {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]);
   const [selectedEntry, setSelectedEntry] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState("2026-02");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  });
 
   const parseUTCDate = (timestamp) => {
     if (!timestamp) return null;
@@ -170,7 +175,7 @@ export default function TimelinePage() {
                         })
                       }
                     >
-                      <div className="entry-icon">{getIcon(entry.type)}</div>
+                      <div className="entry-icon">{getIcon(entry.url)}</div>
 
                       <div className="timeline-entry-content">
                         <div className="entry-title">{entry.title}</div>
@@ -219,12 +224,12 @@ export default function TimelinePage() {
             />
 
             <div className="detail-title-row">
-              <div className="detail-icon">{getIcon(selectedEntry.type)}</div>
+              <div className="detail-icon">{getIcon(selectedEntry.url)}</div>
               <h3 className="detail-title">{selectedEntry.title}</h3>
             </div>
 
             <div className="detail-date">
-              {selectedEntry.date} •
+              {selectedEntry.date} •{" "}
               {parseUTCDate(selectedEntry.created_at)
                 .toLocaleTimeString("en-IN", {
                   timeZone: "Asia/Kolkata",
