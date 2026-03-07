@@ -1,190 +1,29 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <title>RewindYou - Content Extractor</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        min-width: 500px;
-        min-height: 300px;
-        padding: 15px;
-      }
-
-      h2 {
-        color: #333;
-        margin-bottom: 15px;
-      }
-
-      .options {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 15px;
-      }
-
-      button {
-        padding: 10px 20px;
-        background-color: #4285f4;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: bold;
-        width: 100%;
-      }
-
-      button:hover {
-        background-color: #3367d6;
-      }
-
-      #result {
-        margin-top: 15px;
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        min-height: 150px;
-        max-height: 400px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-        line-height: 1.5;
-      }
-
-      .extracted-data {
-        text-align: left;
-      }
-
-      .extracted-data h3 {
-        color: #4285f4;
-        margin-bottom: 15px;
-        border-bottom: 2px solid #4285f4;
-        padding-bottom: 5px;
-      }
-
-      .data-section {
-        margin-bottom: 15px;
-        padding: 10px;
-        background-color: #f9f9f9;
-        border-radius: 4px;
-      }
-
-      .data-section h4 {
-        color: #333;
-        margin-top: 0;
-        margin-bottom: 8px;
-        font-size: 14px;
-      }
-
-      .data-section p {
-        margin: 5px 0;
-        font-size: 13px;
-        line-height: 1.4;
-      }
-
-      .content-preview {
-        max-height: 200px;
-        overflow-y: auto;
-        padding: 10px;
-        background-color: white;
-        border-radius: 4px;
-        border-left: 3px solid #4285f4;
-        font-size: 12px;
-        color: #555;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-      }
-
-      .success-message {
-        background-color: #d4edda;
-        color: #155724;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        border: 1px solid #c3e6cb;
-      }
-
-      .warning-message {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 10px;
-        border: 1px solid #ffeaa7;
-      }
-
-      .error {
-        color: #d32f2f;
-        font-weight: bold;
-      }
-
-      .loading p {
-        margin-top: 10px;
-        color: #666;
-      }
-
-      .loading {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 150px;
-      }
-
-      .loader {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        animation: spin 1s linear infinite;
-      }
-
-      .auth-box {
-        display: grid;
-        grid-template-columns: 1fr 1fr auto;
-        gap: 8px;
-        align-items: center;
-        margin-bottom: 12px;
-      }
-
-      .auth-box input {
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-      }
-
-      .muted {
-        color: #666;
-        font-size: 12px;
-      }
-
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="popup.css" />
   </head>
-  <body>
-    <h2>RewindYou - Content Extractor</h2>
+  <body class="compact">
+    <div class="popup">
+      <h2 class="title">RewindYou - Content Extractor</h2>
 
-    <div class="auth-box">
-      <input id="emailInput" type="email" placeholder="Email" />
-      <input id="passwordInput" type="password" placeholder="Password" />
-      <button id="loginButton">Login</button>
-      <div id="auth-status" class="muted" style="grid-column: span 3;"></div>
+        <div class="auth-box">
+          <input id="emailInput" type="email" placeholder="Email" />
+          <input id="passwordInput" type="password" placeholder="Password" />
+          <button id="loginButton">Login</button>
+          <div id="auth-status" class="muted"></div>
+        </div>
+
+        <div class="options">
+          <button id="extractButton">Extract Page Data</button>
+        </div>
+
+        <div id="result">
+          Click 'Extract Page Data' to extract content and metadata from the
+          current webpage.
+        </div>
     </div>
-
-    <div class="options">
-      <button id="extractButton">Extract Page Data</button>
-    </div>
-
-    <div id="result">
-      Click 'Extract Page Data' to extract content and metadata from the current webpage.
-    </div>
-
-    <script src="popup.js"></script>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>
