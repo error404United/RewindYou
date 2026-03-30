@@ -294,12 +294,18 @@ def refresh():
         )
         raise ValidationError("Refresh token revoked", "refresh_token", 401)
 
-    if session.get("refresh_expires_at") and datetime.now(timezone.utc) > session["refresh_expires_at"]:
-        sessions.update_one(
-            {"_id": session_id},
-            {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "expired_refresh"}},
-        )
-        raise ValidationError("Refresh token expired", "refresh_token", 401)
+    expires_at = session.get("refresh_expires_at")
+    if expires_at:
+        # PyMongo can return naive datetimes depending on client config.
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if datetime.now(timezone.utc) > expires_at:
+            sessions.update_one(
+                {"_id": session_id},
+                {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "expired_refresh"}},
+            )
+            raise ValidationError("Refresh token expired", "refresh_token", 401)
 
     user = users.find_one({"_id": user_id})
     if not user:
