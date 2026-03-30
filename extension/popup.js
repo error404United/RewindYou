@@ -42,7 +42,10 @@ async function extractData() {
         const response = await authFetch("/api/save-youtube-transcript", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: tab.url }),
+          body: JSON.stringify({
+            url: tab.url,
+            title: tab.title
+          }),
         });
 
         if (!response.ok) {

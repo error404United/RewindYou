@@ -377,6 +377,7 @@ def save_youtube_transcript():
     pages = get_pages_collection()
     data = request.get_json(silent=True) or {}
     youtube_url = (data.get("url") or "").strip()
+    title = (data.get("title") or "").strip() or f"YouTube: {video_id}"
 
     if not youtube_url:
         raise ValidationError("Missing YouTube URL", "url")
@@ -399,7 +400,7 @@ def save_youtube_transcript():
     video_id = transcript_data["video_id"]
     lines = transcript_data["transcript"]
     content = " ".join(lines)
-    title = f"YouTube: {video_id}"
+    title = (data.get("title") or "").strip() or f"YouTube: {video_id}"
     word_count = len(content.split())
 
     print(f"Video ID: {video_id}")
