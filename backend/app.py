@@ -139,6 +139,7 @@ def health():
     return jsonify({"status": "ok", "version": "unified"}), 200
 
 
+#USER AUTHENTICATION - SIGNUP
 @app.route("/api/signup", methods=["POST"])
 @limiter.limit("5 per minute")
 def signup():
@@ -186,7 +187,7 @@ def signup():
         201,
     )
 
-
+#USER AUTHENTICATION - LOGIN
 @app.route("/api/login", methods=["POST"])
 @limiter.limit("5 per minute")
 def login():
@@ -221,6 +222,7 @@ def login():
         }
     ), 200
 
+#USER AUTHENTICATION - ME
 @app.route("/api/me", methods=["GET"])
 @jwt_required
 def me():
@@ -236,6 +238,7 @@ def me():
         "email": user.get("email"),
     }), 200
 
+#USER AUTHENTICATION - LOGOUT
 @app.route("/api/logout", methods=["POST"])
 @jwt_required
 def logout():
@@ -251,6 +254,7 @@ def logout():
 
     return jsonify({"message": "Logged out successfully"}), 200
 
+#USER AUTHENTICATION - TOKEN REFRESH
 @app.route("/api/refresh", methods=["POST"])
 @limiter.limit("5 per minute")
 def refresh():
@@ -340,7 +344,7 @@ def refresh():
         }
     ), 200
 
-
+#AI Services - Summarization
 @app.route("/api/summarize", methods=["POST"])
 @jwt_required
 @limiter.limit("10 per minute", key_func=_rate_key_user)
@@ -360,7 +364,7 @@ def summarize_route():
         return resp, 503
     return jsonify({"summary": summary}), 200
 
-
+#AI Services - Embedding
 @app.route("/api/embed", methods=["POST"])
 @jwt_required
 @limiter.limit("15 per minute", key_func=_rate_key_user)
@@ -377,8 +381,7 @@ def embed_route():
     return jsonify({"embedding": embedding}), 200
 
 
-# CONTENT CAPTURE - Webpages
-
+#CONTENT CAPTURE - Webpages
 @app.route("/api/save-page-data", methods=["POST"])
 @jwt_required
 @limiter.limit("10 per minute", key_func=_rate_key_user)
@@ -557,6 +560,7 @@ def save_youtube_transcript():
         "content_preview": content_preview,
     }), 201
 
+#Similarity Search
 @app.route("/api/search", methods=["POST"])
 @jwt_required
 @limiter.limit("30 per minute", key_func=_rate_key_user)
@@ -605,7 +609,7 @@ def search():
 
     return jsonify({"results": matches}), 200
 
-
+#Timeline
 @app.route("/api/timeline", methods=["GET"])
 @jwt_required
 def timeline():
@@ -653,6 +657,7 @@ def timeline():
 
     return jsonify(data), 200
 
+#Delete timeline entry
 @app.route("/api/timeline/<entry_id>", methods=["DELETE"])
 @jwt_required
 def delete_timeline_entry(entry_id):
