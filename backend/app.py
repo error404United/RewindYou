@@ -13,6 +13,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from pymongo.errors import DuplicateKeyError, PyMongoError
 import jwt
+import requests
+from pdf_extractor import save_pdf_from_url
+
 
 from ai.embedding_allminilm import embed_text
 from ai.summarize import MAX_INPUT_TOKENS, summarize_text
@@ -593,6 +596,99 @@ def delete_timeline_entry(entry_id):
         app.logger.warning("Failed to delete embedding for %s: %s", entry_id, exc)
 
     return jsonify({"message": "Entry deleted successfully"}), 200
+
+#CONTENT CAPTURE - PDF Extraction
+@app.route("/api/save-pdf", methods=["POST"])
+@jwt_required
+@limiter.limit("10 per minute", key_func=_rate_key_user)
+def save_pdf():
+    pages = get_pages_collection()
+    data = request.get_json(silent=True) or {}
+    pdf_url = (data.get("url") or "").strip()
+
+    if not pdf_url:
+        raise ValidationError("No PDF URL provided", "url")
+
+    _validate_url(pdf_url)
+
+    print(f"\n--- PDF EXTRACTION REQUEST ---")
+    print(f"User ID: {request.user.get('user_id')}")
+    print(f"URL: {pdf_url}")
+
+    try:
+        extracted = save_pdf_from_url(pdf_url)
+    except Exception as exc:
+        app.logger.exception(exc)
+        return jsonify({"error": "Failed to extract PDF"}), 502
+
+    content = (extracted.get("content") or "").strip()
+    title = (extracted.get("title") or "PDF Document").strip() or "PDF Document"
+    page_count = int(extracted.get("page_count") or 0)
+
+    if len(content) < MIN_CONTENT_LENGTH:
+        raise ValidationError("PDF content too short", "content")
+
+    if len(content) > MAX_CONTENT_LENGTH:
+        content = content[:MAX_CONTENT_LENGTH]
+
+    word_count = len(content.split())
+
+    try:
+        print("⏳ Summarizing PDF...")
+        summary = summarize_text(content)
+
+        print("⏳ Generating embedding...")
+        embedding = embed_text(summary).tolist()
+    except Exception as exc:
+        app.logger.exception(exc)
+        print("❌ FAILED: AI Processing crashed")
+        resp = jsonify({"error": "AI processing failed"})
+        resp.headers["Retry-After"] = "30"
+        return resp, 503
+
+    page_id = str(uuid.uuid4())
+    doc = {
+        "_id": page_id,
+        "user_id": request.user["user_id"],
+        "url": pdf_url,
+        "title": title,
+        "summary": summary,
+        "source_type": "pdf",
+        "page_count": page_count,
+        "word_count": word_count,
+        "created_at": datetime.now(timezone.utc),
+    }
+
+    print("💾 Saving PDF record to MongoDB...")
+    pages.insert_one(doc)
+
+    add_embedding(
+        doc_id=page_id,
+        embedding=embedding,
+        metadata={
+            "page_id": page_id,
+            "user_id": request.user["user_id"],
+            "url": pdf_url,
+            "title": title,
+            "summary": summary,
+            "created_at": doc["created_at"].isoformat(),
+        },
+    )
+
+    content_preview = content[:500] + "..." if len(content) > 500 else content
+
+    return jsonify({
+        "success": True,
+        "message": "Saved",
+        "page_id": page_id,
+        "summary": summary,
+        "url": pdf_url,
+        "title": title,
+        "word_count": word_count,
+        "page_count": page_count,
+        "content_preview": content_preview,
+        "filename": extracted.get("filename"),
+    }), 201
 
 
 

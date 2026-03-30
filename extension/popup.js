@@ -36,6 +36,48 @@ async function extractData() {
       );
     }
 
+    // PDF handling
+    if (/\.pdf([?#]|$)/i.test(tab.url)) {
+      try {
+        const response = await authFetch("/api/save-pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: tab.url }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to extract PDF");
+        }
+
+        const data = await response.json();
+
+        const pageData = {
+          url: data.url,
+          title: data.title || "PDF Document",
+          articleContent: data.content_preview,
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString(),
+          wordCount: data.word_count,
+          paragraphCount: data.page_count || 0,
+          metaDescription: data.summary,
+          metaKeywords: "",
+          author: "",
+        };
+
+        displayExtractedData(pageData);
+
+        const statusMsg = document.createElement("div");
+        statusMsg.className = "success-message";
+        statusMsg.textContent = "PDF extracted & processed successfully!";
+        resultDiv.insertBefore(statusMsg, resultDiv.firstChild);
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error">Error: ${escapeHtml(err.message)}</div>`;
+      }
+
+      return; // Skip normal page extraction for PDFs
+    }
+
     // YouTube transcript handling
     if (tab.url.includes("youtube.com/watch") || tab.url.includes("youtu.be")) {
       try {
