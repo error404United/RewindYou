@@ -3,6 +3,7 @@
 import os
 import re
 import uuid
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional
 import bcrypt
@@ -13,6 +14,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from pymongo.errors import DuplicateKeyError, PyMongoError
 import jwt
+import requests
+from pdf_extractor import save_pdf_from_url
+
 
 from ai.embedding_allminilm import embed_text
 from ai.summarize import MAX_INPUT_TOKENS, summarize_text
@@ -26,7 +30,7 @@ from auth.jwt_utils import (
 )
 from auth.middleware import jwt_required
 from db.chroma_db import add_embedding, delete_embedding, query_embeddings
-from db.mongodb import get_pages_collection, get_users_collection
+from db.mongodb import get_pages_collection, get_users_collection, get_sessions_collection
 from get_youtube_transcript import fetch_transcript, save_transcript_to_json
 
 
@@ -98,6 +102,38 @@ def _rate_key_user():
     return getattr(request, "user", {}).get("user_id") or get_remote_address()
 
 
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _create_session_tokens(user: dict, client_type: str):
+    sessions = get_sessions_collection()
+    session_id = str(uuid.uuid4())
+
+    refresh_token = generate_refresh_token(user["_id"], session_id)
+    refresh_payload = verify_refresh_token(refresh_token)
+    refresh_expires_at = datetime.fromtimestamp(refresh_payload["exp"], timezone.utc)
+
+    sessions.insert_one(
+        {
+            "_id": session_id,
+            "user_id": user["_id"],
+            "client_type": client_type,
+            "refresh_token_hash": _hash_token(refresh_token),
+            "refresh_jti": refresh_payload.get("jti"),
+            "refresh_expires_at": refresh_expires_at,
+            "created_at": datetime.now(timezone.utc),
+            "last_used_at": datetime.now(timezone.utc),
+            "revoked_at": None,
+        }
+    )
+
+    access_token = generate_access_token(
+        user["_id"], user.get("username"), user.get("email"), session_id
+    )
+    return access_token, refresh_token
+
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "version": "unified"}), 200
@@ -121,14 +157,12 @@ def signup():
 
     hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
     user_id = str(uuid.uuid4())
-    token_version = str(uuid.uuid4())
 
     user = {
         "_id": user_id,
         "username": username,
         "email": email,
         "password": hashed_password,
-        "token_version": token_version,
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -137,8 +171,8 @@ def signup():
     except DuplicateKeyError:
         raise ValidationError("Username or email already exists", "username")
 
-    access_token = generate_access_token(user_id, username, email, token_version)
-    refresh_token = generate_refresh_token(user_id, token_version)
+    client_type = (data.get("client_type") or "web").strip().lower()
+    access_token, refresh_token = _create_session_tokens(user, client_type)
 
     return (
         jsonify(
@@ -170,11 +204,8 @@ def login():
     if not user or not bcrypt.checkpw(password.encode(), user["password"]):
         raise ValidationError("Invalid credentials", None, 401)
 
-    token_version = str(uuid.uuid4())
-    users.update_one({"_id": user["_id"]}, {"$set": {"token_version": token_version}})
-
-    access_token = generate_access_token(user["_id"], user["username"], email, token_version)
-    refresh_token = generate_refresh_token(user["_id"], token_version)
+    client_type = (data.get("client_type") or "web").strip().lower()
+    access_token, refresh_token = _create_session_tokens(user, client_type)
 
     return jsonify(
         {
@@ -208,14 +239,15 @@ def me():
 @app.route("/api/logout", methods=["POST"])
 @jwt_required
 def logout():
-    users = get_users_collection()
+    sessions = get_sessions_collection()
     user_id = request.user["user_id"]
+    session_id = (getattr(request, "auth", {}) or {}).get("sid")
 
-    new_version = str(uuid.uuid4())
-    users.update_one(
-        {"_id": user_id},
-        {"$set": {"token_version": new_version}}
-    )
+    if session_id:
+        sessions.update_one(
+            {"_id": session_id, "user_id": user_id, "revoked_at": None},
+            {"$set": {"revoked_at": datetime.now(timezone.utc)}},
+        )
 
     return jsonify({"message": "Logged out successfully"}), 200
 
@@ -223,6 +255,7 @@ def logout():
 @limiter.limit("5 per minute")
 def refresh():
     users = get_users_collection()
+    sessions = get_sessions_collection()
     data = request.get_json(silent=True) or {}
     refresh_token = data.get("refresh_token")
 
@@ -236,20 +269,67 @@ def refresh():
     except jwt.InvalidTokenError:
         raise ValidationError("Invalid refresh token", "refresh_token", 401)
 
-    user = users.find_one({"_id": payload.get("user_id")})
+    user_id = payload.get("user_id")
+    session_id = payload.get("sid")
+    refresh_jti = payload.get("jti")
+
+    if not user_id or not session_id or not refresh_jti:
+        raise ValidationError("Invalid refresh token", "refresh_token", 401)
+
+    session = sessions.find_one({"_id": session_id, "user_id": user_id, "revoked_at": None})
+    if not session:
+        raise ValidationError("Refresh token revoked", "refresh_token", 401)
+
+    if session.get("refresh_token_hash") != _hash_token(refresh_token):
+        sessions.update_one(
+            {"_id": session_id},
+            {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "token_reuse"}},
+        )
+        raise ValidationError("Refresh token revoked", "refresh_token", 401)
+
+    if session.get("refresh_jti") != refresh_jti:
+        sessions.update_one(
+            {"_id": session_id},
+            {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "stale_refresh"}},
+        )
+        raise ValidationError("Refresh token revoked", "refresh_token", 401)
+
+    expires_at = session.get("refresh_expires_at")
+    if expires_at:
+        # PyMongo can return naive datetimes depending on client config.
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if datetime.now(timezone.utc) > expires_at:
+            sessions.update_one(
+                {"_id": session_id},
+                {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "expired_refresh"}},
+            )
+            raise ValidationError("Refresh token expired", "refresh_token", 401)
+
+    user = users.find_one({"_id": user_id})
     if not user:
         raise ValidationError("User not found", None, 401)
 
-    if user.get("token_version") != payload.get("token_version"):
-        raise ValidationError("Refresh token revoked", "refresh_token", 401)
-
-    new_version = str(uuid.uuid4())
-    users.update_one({"_id": user["_id"]}, {"$set": {"token_version": new_version}})
+    new_refresh = generate_refresh_token(user["_id"], session_id)
+    new_payload = verify_refresh_token(new_refresh)
+    new_refresh_expires_at = datetime.fromtimestamp(new_payload["exp"], timezone.utc)
 
     access_token = generate_access_token(
-        user["_id"], user.get("username"), user.get("email"), new_version
+        user["_id"], user.get("username"), user.get("email"), session_id
     )
-    new_refresh = generate_refresh_token(user["_id"], new_version)
+
+    sessions.update_one(
+        {"_id": session_id},
+        {
+            "$set": {
+                "refresh_token_hash": _hash_token(new_refresh),
+                "refresh_jti": new_payload.get("jti"),
+                "refresh_expires_at": new_refresh_expires_at,
+                "last_used_at": datetime.now(timezone.utc),
+            }
+        },
+    )
 
     return jsonify(
         {
@@ -594,6 +674,99 @@ def delete_timeline_entry(entry_id):
         app.logger.warning("Failed to delete embedding for %s: %s", entry_id, exc)
 
     return jsonify({"message": "Entry deleted successfully"}), 200
+
+#CONTENT CAPTURE - PDF Extraction
+@app.route("/api/save-pdf", methods=["POST"])
+@jwt_required
+@limiter.limit("10 per minute", key_func=_rate_key_user)
+def save_pdf():
+    pages = get_pages_collection()
+    data = request.get_json(silent=True) or {}
+    pdf_url = (data.get("url") or "").strip()
+
+    if not pdf_url:
+        raise ValidationError("No PDF URL provided", "url")
+
+    _validate_url(pdf_url)
+
+    print(f"\n--- PDF EXTRACTION REQUEST ---")
+    print(f"User ID: {request.user.get('user_id')}")
+    print(f"URL: {pdf_url}")
+
+    try:
+        extracted = save_pdf_from_url(pdf_url)
+    except Exception as exc:
+        app.logger.exception(exc)
+        return jsonify({"error": "Failed to extract PDF"}), 502
+
+    content = (extracted.get("content") or "").strip()
+    title = (extracted.get("title") or "PDF Document").strip() or "PDF Document"
+    page_count = int(extracted.get("page_count") or 0)
+
+    if len(content) < MIN_CONTENT_LENGTH:
+        raise ValidationError("PDF content too short", "content")
+
+    if len(content) > MAX_CONTENT_LENGTH:
+        content = content[:MAX_CONTENT_LENGTH]
+
+    word_count = len(content.split())
+
+    try:
+        print("⏳ Summarizing PDF...")
+        summary = summarize_text(content)
+
+        print("⏳ Generating embedding...")
+        embedding = embed_text(summary).tolist()
+    except Exception as exc:
+        app.logger.exception(exc)
+        print("❌ FAILED: AI Processing crashed")
+        resp = jsonify({"error": "AI processing failed"})
+        resp.headers["Retry-After"] = "30"
+        return resp, 503
+
+    page_id = str(uuid.uuid4())
+    doc = {
+        "_id": page_id,
+        "user_id": request.user["user_id"],
+        "url": pdf_url,
+        "title": title,
+        "summary": summary,
+        "source_type": "pdf",
+        "page_count": page_count,
+        "word_count": word_count,
+        "created_at": datetime.now(timezone.utc),
+    }
+
+    print("💾 Saving PDF record to MongoDB...")
+    pages.insert_one(doc)
+
+    add_embedding(
+        doc_id=page_id,
+        embedding=embedding,
+        metadata={
+            "page_id": page_id,
+            "user_id": request.user["user_id"],
+            "url": pdf_url,
+            "title": title,
+            "summary": summary,
+            "created_at": doc["created_at"].isoformat(),
+        },
+    )
+
+    content_preview = content[:500] + "..." if len(content) > 500 else content
+
+    return jsonify({
+        "success": True,
+        "message": "Saved",
+        "page_id": page_id,
+        "summary": summary,
+        "url": pdf_url,
+        "title": title,
+        "word_count": word_count,
+        "page_count": page_count,
+        "content_preview": content_preview,
+        "filename": extracted.get("filename"),
+    }), 201
 
 
 
