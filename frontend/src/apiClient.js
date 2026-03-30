@@ -72,7 +72,10 @@ export async function apiRequest(path, options = {}, config = {}) {
 export async function login(email, password) {
   const res = await apiRequest(
     "/login",
-    { method: "POST", body: JSON.stringify({ email, password }) },
+    {
+      method: "POST",
+      body: JSON.stringify({ email, password, client_type: "web" }),
+    },
     { skipAuth: true },
   );
   if (!res.ok) {
@@ -91,7 +94,10 @@ export async function login(email, password) {
 export async function signup(username, email, password) {
   const res = await apiRequest(
     "/signup",
-    { method: "POST", body: JSON.stringify({ username, email, password }) },
+    {
+      method: "POST",
+      body: JSON.stringify({ username, email, password, client_type: "web" }),
+    },
     { skipAuth: true },
   );
   if (!res.ok) {

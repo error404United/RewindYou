@@ -3,6 +3,7 @@
 import os
 import re
 import uuid
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional
 import bcrypt
@@ -29,7 +30,7 @@ from auth.jwt_utils import (
 )
 from auth.middleware import jwt_required
 from db.chroma_db import add_embedding, delete_embedding, query_embeddings
-from db.mongodb import get_pages_collection, get_users_collection
+from db.mongodb import get_pages_collection, get_users_collection, get_sessions_collection
 from get_youtube_transcript import fetch_transcript, save_transcript_to_json
 
 
@@ -101,6 +102,38 @@ def _rate_key_user():
     return getattr(request, "user", {}).get("user_id") or get_remote_address()
 
 
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _create_session_tokens(user: dict, client_type: str):
+    sessions = get_sessions_collection()
+    session_id = str(uuid.uuid4())
+
+    refresh_token = generate_refresh_token(user["_id"], session_id)
+    refresh_payload = verify_refresh_token(refresh_token)
+    refresh_expires_at = datetime.fromtimestamp(refresh_payload["exp"], timezone.utc)
+
+    sessions.insert_one(
+        {
+            "_id": session_id,
+            "user_id": user["_id"],
+            "client_type": client_type,
+            "refresh_token_hash": _hash_token(refresh_token),
+            "refresh_jti": refresh_payload.get("jti"),
+            "refresh_expires_at": refresh_expires_at,
+            "created_at": datetime.now(timezone.utc),
+            "last_used_at": datetime.now(timezone.utc),
+            "revoked_at": None,
+        }
+    )
+
+    access_token = generate_access_token(
+        user["_id"], user.get("username"), user.get("email"), session_id
+    )
+    return access_token, refresh_token
+
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "version": "unified"}), 200
@@ -124,14 +157,12 @@ def signup():
 
     hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
     user_id = str(uuid.uuid4())
-    token_version = str(uuid.uuid4())
 
     user = {
         "_id": user_id,
         "username": username,
         "email": email,
         "password": hashed_password,
-        "token_version": token_version,
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -140,8 +171,8 @@ def signup():
     except DuplicateKeyError:
         raise ValidationError("Username or email already exists", "username")
 
-    access_token = generate_access_token(user_id, username, email, token_version)
-    refresh_token = generate_refresh_token(user_id, token_version)
+    client_type = (data.get("client_type") or "web").strip().lower()
+    access_token, refresh_token = _create_session_tokens(user, client_type)
 
     return (
         jsonify(
@@ -173,11 +204,8 @@ def login():
     if not user or not bcrypt.checkpw(password.encode(), user["password"]):
         raise ValidationError("Invalid credentials", None, 401)
 
-    token_version = str(uuid.uuid4())
-    users.update_one({"_id": user["_id"]}, {"$set": {"token_version": token_version}})
-
-    access_token = generate_access_token(user["_id"], user["username"], email, token_version)
-    refresh_token = generate_refresh_token(user["_id"], token_version)
+    client_type = (data.get("client_type") or "web").strip().lower()
+    access_token, refresh_token = _create_session_tokens(user, client_type)
 
     return jsonify(
         {
@@ -211,14 +239,15 @@ def me():
 @app.route("/api/logout", methods=["POST"])
 @jwt_required
 def logout():
-    users = get_users_collection()
+    sessions = get_sessions_collection()
     user_id = request.user["user_id"]
+    session_id = (getattr(request, "auth", {}) or {}).get("sid")
 
-    new_version = str(uuid.uuid4())
-    users.update_one(
-        {"_id": user_id},
-        {"$set": {"token_version": new_version}}
-    )
+    if session_id:
+        sessions.update_one(
+            {"_id": session_id, "user_id": user_id, "revoked_at": None},
+            {"$set": {"revoked_at": datetime.now(timezone.utc)}},
+        )
 
     return jsonify({"message": "Logged out successfully"}), 200
 
@@ -226,6 +255,7 @@ def logout():
 @limiter.limit("5 per minute")
 def refresh():
     users = get_users_collection()
+    sessions = get_sessions_collection()
     data = request.get_json(silent=True) or {}
     refresh_token = data.get("refresh_token")
 
@@ -239,20 +269,61 @@ def refresh():
     except jwt.InvalidTokenError:
         raise ValidationError("Invalid refresh token", "refresh_token", 401)
 
-    user = users.find_one({"_id": payload.get("user_id")})
+    user_id = payload.get("user_id")
+    session_id = payload.get("sid")
+    refresh_jti = payload.get("jti")
+
+    if not user_id or not session_id or not refresh_jti:
+        raise ValidationError("Invalid refresh token", "refresh_token", 401)
+
+    session = sessions.find_one({"_id": session_id, "user_id": user_id, "revoked_at": None})
+    if not session:
+        raise ValidationError("Refresh token revoked", "refresh_token", 401)
+
+    if session.get("refresh_token_hash") != _hash_token(refresh_token):
+        sessions.update_one(
+            {"_id": session_id},
+            {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "token_reuse"}},
+        )
+        raise ValidationError("Refresh token revoked", "refresh_token", 401)
+
+    if session.get("refresh_jti") != refresh_jti:
+        sessions.update_one(
+            {"_id": session_id},
+            {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "stale_refresh"}},
+        )
+        raise ValidationError("Refresh token revoked", "refresh_token", 401)
+
+    if session.get("refresh_expires_at") and datetime.now(timezone.utc) > session["refresh_expires_at"]:
+        sessions.update_one(
+            {"_id": session_id},
+            {"$set": {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "expired_refresh"}},
+        )
+        raise ValidationError("Refresh token expired", "refresh_token", 401)
+
+    user = users.find_one({"_id": user_id})
     if not user:
         raise ValidationError("User not found", None, 401)
 
-    if user.get("token_version") != payload.get("token_version"):
-        raise ValidationError("Refresh token revoked", "refresh_token", 401)
-
-    new_version = str(uuid.uuid4())
-    users.update_one({"_id": user["_id"]}, {"$set": {"token_version": new_version}})
+    new_refresh = generate_refresh_token(user["_id"], session_id)
+    new_payload = verify_refresh_token(new_refresh)
+    new_refresh_expires_at = datetime.fromtimestamp(new_payload["exp"], timezone.utc)
 
     access_token = generate_access_token(
-        user["_id"], user.get("username"), user.get("email"), new_version
+        user["_id"], user.get("username"), user.get("email"), session_id
     )
-    new_refresh = generate_refresh_token(user["_id"], new_version)
+
+    sessions.update_one(
+        {"_id": session_id},
+        {
+            "$set": {
+                "refresh_token_hash": _hash_token(new_refresh),
+                "refresh_jti": new_payload.get("jti"),
+                "refresh_expires_at": new_refresh_expires_at,
+                "last_used_at": datetime.now(timezone.utc),
+            }
+        },
+    )
 
     return jsonify(
         {

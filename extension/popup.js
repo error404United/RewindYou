@@ -263,7 +263,7 @@ async function loginUser() {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, client_type: "extension" }),
       },
       { skipAuth: true, skipRefresh: true },
     );
