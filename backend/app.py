@@ -16,6 +16,7 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 import jwt
 import requests
 from pdf_extractor import save_pdf_from_url
+from content_archiver import save_cleaned_content
 
 
 from ai.embedding_allminilm import embed_text
@@ -412,6 +413,16 @@ def save_page_data():
         
         print("⏳ Running AI Embedding...")
         embedding = embed_text(summary).tolist()
+        
+        print("💾 Saving cleaned content to extracted_data...")
+        page_id = str(uuid.uuid4())
+        cleaned_content_file = save_cleaned_content(
+            content=content,
+            source_type="webpage",
+            page_id=page_id,
+            url=url,
+            title=title
+        )
     except ValidationError:
         raise
     except Exception as exc:
@@ -421,7 +432,6 @@ def save_page_data():
         resp.headers["Retry-After"] = "30"
         return resp, 503
 
-    page_id = str(uuid.uuid4())
     doc = {
         "_id": page_id,
         "user_id": request.user["user_id"],
@@ -430,6 +440,7 @@ def save_page_data():
         "summary": summary,
         "source_type": "webpage",
         "word_count": len(content.split()),
+        "cleaned_content_file": cleaned_content_file,
         "created_at": datetime.now(timezone.utc)
     }
 
@@ -501,6 +512,16 @@ def save_youtube_transcript():
 
         print("⏳ Generating embedding...")
         embedding = embed_text(summary).tolist()
+        
+        print("💾 Saving cleaned content to extracted_data...")
+        page_id = str(uuid.uuid4())
+        cleaned_content_file = save_cleaned_content(
+            content=content,
+            source_type="youtube_transcript",
+            page_id=page_id,
+            url=youtube_url,
+            title=title
+        )
     except Exception as exc:
         app.logger.exception(exc)
         print("❌ FAILED: AI Processing crashed")
@@ -509,7 +530,6 @@ def save_youtube_transcript():
         return resp, 503
 
     # Save to MongoDB
-    page_id = str(uuid.uuid4())
     doc = {
         "_id": page_id,
         "user_id": request.user["user_id"],
@@ -519,6 +539,7 @@ def save_youtube_transcript():
         "source_type": "youtube_transcript",
         "video_id": video_id,
         "word_count": word_count,
+        "cleaned_content_file": cleaned_content_file,
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -722,6 +743,16 @@ def save_pdf():
 
         print("⏳ Generating embedding...")
         embedding = embed_text(summary).tolist()
+        
+        print("💾 Saving cleaned content to extracted_data...")
+        page_id = str(uuid.uuid4())
+        cleaned_content_file = save_cleaned_content(
+            content=content,
+            source_type="pdf",
+            page_id=page_id,
+            url=pdf_url,
+            title=title
+        )
     except Exception as exc:
         app.logger.exception(exc)
         print("❌ FAILED: AI Processing crashed")
@@ -729,7 +760,6 @@ def save_pdf():
         resp.headers["Retry-After"] = "30"
         return resp, 503
 
-    page_id = str(uuid.uuid4())
     doc = {
         "_id": page_id,
         "user_id": request.user["user_id"],
@@ -739,6 +769,7 @@ def save_pdf():
         "source_type": "pdf",
         "page_count": page_count,
         "word_count": word_count,
+        "cleaned_content_file": cleaned_content_file,
         "created_at": datetime.now(timezone.utc),
     }
 

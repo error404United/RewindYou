@@ -42,11 +42,15 @@ def query_embeddings(
     collection_name: str = "rewindyou_memory",
 ) -> Dict:
     collection = get_collection(collection_name)
-    return collection.query(
-        query_embeddings=[query_embedding],
-        where=where or {},
-        n_results=n_results,
-    )
+    # Only pass where if it's provided and not empty
+    kwargs = {
+        "query_embeddings": [query_embedding],
+        "n_results": n_results,
+    }
+    if where:
+        kwargs["where"] = where
+    
+    return collection.query(**kwargs)
 
 
 def delete_embedding(

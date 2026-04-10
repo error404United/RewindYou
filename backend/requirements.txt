@@ -12,3 +12,6 @@ transformers>=4.46
 chromadb>=1.4
 youtube-transcript-api
 PyMuPDF>=1.24
+bert-score>=0.3.13
+numpy>=1.24
+scikit-learn>=1.3
