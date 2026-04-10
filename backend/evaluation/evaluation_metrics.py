@@ -175,26 +175,6 @@ class EvaluationMetrics:
                 }
             }
             
-            print(f"\n✅ BERTScore Statistics (Cleaned Content → Summary):")
-            print(f"   Precision: {np.mean(P):.4f} (±{np.std(P):.4f})")
-            print(f"   Recall:    {np.mean(R):.4f} (±{np.std(R):.4f})")
-            print(f"   F1 Score:  {np.mean(F1):.4f} (±{np.std(F1):.4f})")
-            
-            print(f"\n✅ Classification Metrics (Quality Threshold: {threshold}):")
-            print(f"   Accuracy:  {accuracy:.4f}")
-            print(f"   Precision: {precision:.4f}")
-            print(f"   Recall:    {recall:.4f}")
-            print(f"   F1 Score:  {f1_overall:.4f}")
-            
-            print(f"\n✅ Confusion Matrix:")
-            print(f"   ┌─────────────────┬──────────┬──────────┐")
-            print(f"   │                 │ Predicted│          │")
-            print(f"   │                 │  Low (0) │ High (1) │")
-            print(f"   ├─────────────────┼──────────┼──────────┤")
-            print(f"   │ Actual Low (0)  │   {cm[0, 0]:<6} │  {cm[0, 1]:<6} │")
-            print(f"   │ Actual High (1) │   {cm[1, 0]:<6} │  {cm[1, 1]:<6} │")
-            print(f"   └─────────────────┴──────────┴──────────┘")
-            
             self.metrics_results["bert_score"] = results
             return results
             
@@ -223,11 +203,6 @@ class EvaluationMetrics:
         Returns:
             Dictionary with consolidated retrieval metrics
         """
-        print("\n📊 METRIC 2: Cosine Similarity (CONSOLIDATED)")
-        print("=" * 60)
-        
-        print(f"\n🔍 Running {len(test_queries)} test queries...")
-        
         all_similarities = []
         successful_queries = 0
         
@@ -251,7 +226,6 @@ class EvaluationMetrics:
                     all_similarities.extend(distances)
                     successful_queries += 1
                     avg_sim = np.mean(distances)
-                    print(f"   ✅ Query: '{query_text[:45]}...' | Avg: {avg_sim:.4f}")
                 
             except Exception as e:
                 print(f"   ⚠️  Query failed: {str(e)}")
@@ -273,11 +247,6 @@ class EvaluationMetrics:
             "max_similarity": float(np.max(all_similarities)),
         }
         
-        print(f"\n✅ CONSOLIDATED Cosine Similarity:")
-        print(f"   Avg Similarity: {overall_avg:.4f}")
-        print(f"   Std Dev:        {overall_std:.4f}")
-        print(f"   Range:          {np.min(all_similarities):.4f} - {np.max(all_similarities):.4f}")
-        
         self.metrics_results["retrieval_performance"] = results_dict
         return results_dict
     
@@ -295,9 +264,6 @@ class EvaluationMetrics:
         Returns:
             Dictionary with consolidated compression metrics
         """
-        print("\n📊 METRIC 3: Compression Ratio (CONSOLIDATED)")
-        print("=" * 60)
-        
         query = {} if not user_id else {"user_id": user_id}
         docs = list(self.pages_collection.find(query))
         
@@ -329,12 +295,6 @@ class EvaluationMetrics:
             "max_ratio": float(np.max(compression_ratios)),
             "median_ratio": float(np.median(compression_ratios)),
         }
-        
-        print(f"\n✅ CONSOLIDATED Compression Metrics:")
-        print(f"   Total Documents:    {overall['total_documents']}")
-        print(f"   Avg Compression:    {overall['avg_compression_ratio']:.4f} ({overall['avg_compression_ratio']*100:.2f}%)")
-        print(f"   Std Dev:            {overall['compression_std']:.4f}")
-        print(f"   Range:              {overall['min_ratio']:.4f} - {overall['max_ratio']:.4f}")
         
         self.metrics_results["compression_analysis"] = overall
         return overall
@@ -391,6 +351,11 @@ class EvaluationMetrics:
 
 def main():
     """Run complete evaluation on stored documents. Returns CONSOLIDATED RESULTS ONLY."""
+    # Suppress model loading warnings
+    import logging
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+    logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+    
     print("\n🚀 Starting RewindYou Evaluation Metrics")
     print("=" * 80)
     
