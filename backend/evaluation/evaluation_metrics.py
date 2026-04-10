@@ -307,9 +307,8 @@ class EvaluationMetrics:
         print("=" * 80)
         
         # BERTScore Results
-        print("\n" + "█" * 80)
+        print("\n")
         print("1️⃣  BERTScore Analysis")
-        print("█" * 80)
         if "bert_score" in self.metrics_results and self.metrics_results["bert_score"]:
             bs = self.metrics_results["bert_score"]
             if "bertscore_metrics" in bs:
@@ -319,30 +318,24 @@ class EvaluationMetrics:
                 print(f"   F1 Score  (μ±σ): {bs['bertscore_metrics']['f1_mean']:.4f} ± {bs['bertscore_metrics']['f1_std']:.4f}")
         
         # Retrieval Performance
-        print("\n" + "█" * 80)
+        print("\n")
         print("2️⃣  Cosine Similarity (Retrieval Performance)")
-        print("█" * 80)
         if "retrieval_performance" in self.metrics_results and self.metrics_results["retrieval_performance"]:
             rp = self.metrics_results["retrieval_performance"]
             print(f"\n📊 Overall Retrieval Metrics:")
             print(f"   Total Queries:      {rp['total_queries']}")
             print(f"   Successful:         {rp['successful_queries']}/{rp['total_queries']}")
             print(f"   Avg Cosine Sim:    {rp['avg_cosine_similarity']:.4f}")
-            print(f"   Std Dev:            {rp['std_cosine_similarity']:.4f}")
-            print(f"   Range:              {rp['min_similarity']:.4f} - {rp['max_similarity']:.4f}")
         
         # Compression Ratio
-        print("\n" + "█" * 80)
+        print("\n")
         print("3️⃣  Compression Ratio Analysis")
-        print("█" * 80)
         if "compression_analysis" in self.metrics_results and self.metrics_results["compression_analysis"]:
             ca = self.metrics_results["compression_analysis"]
             print(f"\n📊 Overall Compression Metrics:")
             print(f"   Total Documents:  {ca['total_documents']}")
             print(f"   Avg Ratio:         {ca['avg_compression_ratio']:.4f} ({ca['avg_compression_ratio']*100:.2f}%)")
-            print(f"   Std Dev:           {ca['compression_std']:.4f}")
             print(f"   Median:            {ca['median_ratio']:.4f}")
-            print(f"   Range:             {ca['min_ratio']:.4f} - {ca['max_ratio']:.4f}")
         
         print("\n" + "=" * 80)
         print("✅ EVALUATION COMPLETE")
